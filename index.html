@@ -940,6 +940,19 @@ function watchIce(c, who){
     else if (st === 'disconnected') dT = setTimeout(() => { if (conn === c && pc.iceConnectionState === 'disconnected') forceRedial('経路が5秒戻らない'); }, 5000);
   });
 }
+// つながった経路の種類を記録（直接＝host/srflx、中継サーバー経由＝relay）
+const ROUTE = {host:'同じネットワーク内で直接', srflx:'インターネット経由で直接', prflx:'インターネット経由で直接', relay:'中継サーバー経由'};
+function logRoute(c, who){
+  const pc = c.peerConnection; if (!pc || !pc.getStats) return;
+  setTimeout(() => pc.getStats().then(st => {
+    let pair = null; const cand = {};
+    st.forEach(x => { if (x.type === 'candidate-pair' && x.state === 'succeeded' && (x.nominated || x.selected) && !pair) pair = x; if (x.type === 'local-candidate' || x.type === 'remote-candidate') cand[x.id] = x; });
+    if (!pair) return;
+    const l = cand[pair.localCandidateId] || {}, rm = cand[pair.remoteCandidateId] || {};
+    const t = l.candidateType === 'relay' || rm.candidateType === 'relay' ? 'relay' : (l.candidateType || '?');
+    netLog(`${who}経路の種類：${ROUTE[t] || t}（${l.candidateType}/${rm.candidateType}・${l.protocol || ''}${pair.currentRoundTripTime != null ? '・往復' + Math.round(pair.currentRoundTripTime * 1000) + 'ms' : ''}）`);
+  }).catch(() => {}), 1500);
+}
 function forceRedial(why){
   if (role !== 'guest' || !roomCode) return;
   netLog('つなぎ直し：' + why);
@@ -1062,7 +1075,7 @@ function startHost(code, resumeState){
   peer.on('open', () => { hostOpened = true; netState = 'hosting'; retries = 0; netLog('ホスト：サーバーに接続'); persist(); render(); });
   peer.on('connection', c => {
     c.on('open', () => {
-      netLog('ホスト：相手がつながった'); watchIce(c, '相手');
+      netLog('ホスト：相手がつながった'); watchIce(c, '相手'); logRoute(c, 'ホスト：');
       const first = conns.size === 0; c.lastSeen = Date.now(); conns.add(c); try { c.send({t:'s', s:S}); } catch(e){}
       if (first){ closeSettings(); toast('相手が接続しました'); }
       render();
@@ -1143,7 +1156,7 @@ function dial(){
   const old = conn; conn = c;
   if (old && old !== c){ try { old.close(); } catch(e){} }
   c.on('open', () => {
-    netLog('参加：ホストとつながった'); watchIce(c, 'ホスト');
+    netLog('参加：ホストとつながった'); watchIce(c, 'ホスト'); logRoute(c, '参加：');
     netState = 'connected'; retries = 0; lastSeen = Date.now(); c._fresh = true; sendHello();
     if (!joinedOnce){ joinedOnce = true; closeSettings(); toast(`対戦 ${roomCode} に参加しました`); }
     render();
