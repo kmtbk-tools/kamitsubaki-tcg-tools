@@ -663,6 +663,8 @@ details>summary{cursor:pointer;color:var(--muted);font-size:12px;letter-spacing:
 /* オンライン：相手が変えた数値を光らせる */
 @keyframes kflash{0%{box-shadow:0 0 0 3px var(--gold),0 0 18px rgba(214,180,106,.75);background-color:rgba(214,180,106,.25)}100%{box-shadow:0 0 0 0 rgba(214,180,106,0);background-color:rgba(214,180,106,0)}}
 .flash{animation:kflash 1.6s ease-out;border-radius:8px}
+.netlogbox summary{font-size:13px;color:var(--muted)}
+.netlog{max-height:200px;overflow:auto;font-size:11px;line-height:1.5;color:var(--muted);background:var(--bg);border:1px solid var(--line-soft);border-radius:8px;padding:6px 8px;white-space:pre-wrap;margin:6px 0}
 </style>
 </head>
 <body>
@@ -744,6 +746,7 @@ details>summary{cursor:pointer;color:var(--muted);font-size:12px;letter-spacing:
         </div>
         <label class="check oecheck"><input type="checkbox" id="oe"> <span>相手の数値も操作できるようにする<small class="note" id="oenote"></small></span></label>
         <p class="note" id="roomnote"></p>
+        <details class="netlogbox"><summary>接続の記録（切れたときの調査用）</summary><pre id="netlog" class="netlog"></pre><button class="btn" id="copynetlog">記録をコピー</button></details>
         <button class="btn" id="leave">対戦から抜ける</button>
       </div>
     </div>
@@ -917,6 +920,35 @@ let peer = null, conn = null;   // guest connection
 const conns = new Set();        // host connections
 let netState = 'idle';          // idle | connecting | hosting | connected | lost | notfound | error
 let seq = 0, unacked = [], retries = 0, retryT = null;
+let hostOpened = false, lastReTry = 0;
+// 接続の記録（不具合調査用。設定画面の「接続の記録」に表示）
+const netLogs = [];
+function netLog(m){
+  const t = new Date(), ts = [t.getHours(), t.getMinutes(), t.getSeconds()].map(x => String(x).padStart(2, '0')).join(':');
+  netLogs.unshift(ts + ' ' + m); if (netLogs.length > 40) netLogs.pop();
+  const el = document.getElementById('netlog'); if (el) el.textContent = netLogs.join('\n');
+}
+// 通信経路（直接 / 中継）の状態を記録し、切れたらすぐつなぎ直す
+function watchIce(c, who){
+  const pc = c.peerConnection; if (!pc || pc._ktw) return; pc._ktw = true;
+  let dT = null;
+  pc.addEventListener('iceconnectionstatechange', () => {
+    const st = pc.iceConnectionState; netLog(`${who} 経路:${st}`);
+    clearTimeout(dT);
+    if (role !== 'guest' || conn !== c) return;
+    if (st === 'failed') forceRedial('経路が切れた');
+    else if (st === 'disconnected') dT = setTimeout(() => { if (conn === c && pc.iceConnectionState === 'disconnected') forceRedial('経路が5秒戻らない'); }, 5000);
+  });
+}
+function forceRedial(why){
+  if (role !== 'guest' || !roomCode) return;
+  netLog('つなぎ直し：' + why);
+  const old = conn; conn = null; if (old){ try { old.close(); } catch(e){} }
+  netState = 'lost'; render();
+  clearTimeout(retryT); retries = 0;
+  if (!peer || peer.destroyed){ startGuest(roomCode, seat === 'watch'); return; }
+  if (peer.disconnected){ try { peer.reconnect(); } catch(e){} } else dial();
+}
 let bigP = 'p1';
 let viewMode = 'equal';
 const viewKey = () => mode === 'online' ? 'kt-view-on' : 'kt-view-off';
@@ -1015,7 +1047,7 @@ function teardown(){
   for (const c of conns){ try { c.close(); } catch(e){} } conns.clear();
   if (conn){ try { conn.close(); } catch(e){} conn = null; }
   if (peer){ try { peer.destroy(); } catch(e){} peer = null; }
-  role = null; roomCode = null; netState = 'idle'; unacked = []; onHist.length = 0; prevVals = null;
+  role = null; roomCode = null; netState = 'idle'; unacked = []; onHist.length = 0; prevVals = null; hostOpened = false;
 }
 function startHost(code, resumeState){
   if (typeof Peer === 'undefined'){ toast('通信ライブラリを読み込めませんでした'); return; }
@@ -1027,9 +1059,10 @@ function startHost(code, resumeState){
   seat = store.get('kt-seat-host') || 'p1'; bigP = seat === 'watch' ? 'p1' : seat;
   store.set('kt-mode', 'online');
   peer = new Peer(PFX + code, window.KT_PEER_OPTS || {});
-  peer.on('open', () => { netState = 'hosting'; retries = 0; persist(); render(); });
+  peer.on('open', () => { hostOpened = true; netState = 'hosting'; retries = 0; netLog('ホスト：サーバーに接続'); persist(); render(); });
   peer.on('connection', c => {
     c.on('open', () => {
+      netLog('ホスト：相手がつながった'); watchIce(c, '相手');
       const first = conns.size === 0; c.lastSeen = Date.now(); conns.add(c); try { c.send({t:'s', s:S}); } catch(e){}
       if (first){ closeSettings(); toast('相手が接続しました'); }
       render();
@@ -1066,11 +1099,14 @@ function startHost(code, resumeState){
       if (m.k === 'game' && m.o && !('first' in m.o) && Object.keys(m.o).some(x => TURN_KEYS.includes(x)) && S.game.first && c.seat !== S.game.active) return reject();
       Object.assign(S[m.k], clean(m.k, m.o)); persist(); broadcast(c, m.q|0); render();
     });
-    c.on('close', () => { conns.delete(c); render(); });
-    c.on('error', () => { conns.delete(c); render(); });
+    c.on('close', () => { netLog('ホスト：相手との接続が閉じた'); conns.delete(c); render(); });
+    c.on('error', e => { netLog('ホスト：相手との接続エラー ' + ((e && e.type) || '')); conns.delete(c); render(); });
   });
-  peer.on('disconnected', () => { if (peer && !peer.destroyed){ netState = 'connecting'; render(); setTimeout(() => { try { peer.reconnect(); } catch(e){} }, 1000); } });
+  // サーバー（シグナリング）とだけ切れた状態。相手との通信はそのまま続くので、裏でつなぎ直す（4秒ごとの見回りでも再試行）
+  peer.on('disconnected', () => { netLog('ホスト：サーバーから切断（相手との通信は継続）'); if (peer && !peer.destroyed){ netState = 'connecting'; render(); } });
   peer.on('error', e => {
+    netLog('ホスト：エラー ' + e.type);
+    if (hostOpened && peer && !peer.destroyed) return;   // 対戦中は作り直さない（コードや状態を変えない）。見回りでつなぎ直す
     if (e.type === 'unavailable-id'){
       if (resumeState && retries++ < 8){ netState = 'connecting'; render(); const st = S; retryT = setTimeout(() => startHost(code, st), 3000); return; }
       toast('このコードは使用中です。新しいコードで作り直します'); startHost(newCode(), null); return;
@@ -1090,11 +1126,13 @@ function startGuest(code, asWatch){
   store.set('kt-mode', 'online');
   store.set('kt-last', JSON.stringify({role:'guest', code, at:Date.now(), watch: !!asWatch}));
   peer = window.KT_PEER_OPTS ? new Peer(window.KT_PEER_OPTS) : new Peer();
-  peer.on('open', () => dial());
-  peer.on('disconnected', () => { if (peer && !peer.destroyed) setTimeout(() => { try { peer.reconnect(); } catch(e){} }, 1000); });
+  peer.on('open', () => { netLog('参加：サーバーに接続'); if (!(conn && conn.open)) dial(); });   // サーバーだけ切れて戻ったときは、生きている接続をつなぎ直さない
+  peer.on('disconnected', () => { netLog('参加：サーバーから切断'); });   // つなぎ直しは見回り（5秒おき）か、ホストとの接続が切れたときの再試行で行う
   peer.on('error', e => {
+    netLog('参加：エラー ' + e.type);
     if (e.type === 'peer-unavailable'){ netState = retries > 0 ? 'lost' : 'notfound'; render(); scheduleRetry(); return; }
-    if (e.type === 'network' || e.type === 'server-error' || e.type === 'socket-error'){ netState = 'lost'; render(); scheduleRetry(); return; }
+    // サーバー（シグナリング）とだけ切れた場合、ホストとの接続が生きていればそのまま続ける（サーバーへは見回りでつなぎ直す）
+    if (e.type === 'network' || e.type === 'server-error' || e.type === 'socket-error'){ if (conn && conn.open) return; netState = 'lost'; render(); scheduleRetry(); return; }
     if (e.type === 'browser-incompatible'){ toast('このブラウザはオンライン対戦に対応していません'); netState = 'error'; render(); }
   });
   render();
@@ -1105,6 +1143,7 @@ function dial(){
   const old = conn; conn = c;
   if (old && old !== c){ try { old.close(); } catch(e){} }
   c.on('open', () => {
+    netLog('参加：ホストとつながった'); watchIce(c, 'ホスト');
     netState = 'connected'; retries = 0; lastSeen = Date.now(); c._fresh = true; sendHello();
     if (!joinedOnce){ joinedOnce = true; closeSettings(); toast(`対戦 ${roomCode} に参加しました`); }
     render();
@@ -1129,8 +1168,8 @@ function dial(){
     for (const u of unacked) Object.assign(s[u.k], u.o);
     S = s; render();
   });
-  c.on('close', () => { if (conn === c){ netState = 'lost'; render(); scheduleRetry(); } });
-  c.on('error', () => {});
+  c.on('close', () => { if (conn === c){ netLog('参加：ホストとの接続が閉じた'); netState = 'lost'; render(); scheduleRetry(); } });
+  c.on('error', e => netLog('参加：接続エラー ' + ((e && e.type) || '')));
 }
 function capOnlyPatch(k, o, from){
   if (from !== 'p1' && from !== 'p2') return false;
@@ -1155,10 +1194,7 @@ function reconnectNow(){
   if (mode !== 'online' || !roomCode) return;
   if (role === 'guest'){
     if (conn && conn.open && Date.now() - lastSeen < 8000) return;
-    clearTimeout(retryT); retries = 0;
-    if (!peer || peer.destroyed){ startGuest(roomCode, seat === 'watch'); return; }
-    netState = 'lost'; render();
-    if (peer.disconnected){ try { peer.reconnect(); } catch(e){} } else dial();
+    forceRedial('画面・回線の復帰または応答なし');
   } else if (role === 'host'){
     if (!peer || peer.destroyed){ startHost(roomCode, S); return; }
     if (peer.disconnected){ try { peer.reconnect(); } catch(e){} }
@@ -1169,11 +1205,16 @@ setInterval(() => {
   if (mode !== 'online') return;
   if (role === 'guest' && conn && conn.open){
     try { conn.send({t:'ping'}); } catch(e){}
-    if (netState === 'connected' && Date.now() - lastSeen > 12000){ try { conn.close(); } catch(e){} conn = null; reconnectNow(); }
+    if (netState === 'connected' && Date.now() - lastSeen > 12000){ netLog('参加：12秒応答なし'); try { conn.close(); } catch(e){} conn = null; reconnectNow(); }
   }
+  if (role === 'host' && peer && roomCode){
+    if (peer.destroyed){ if (hostOpened){ netLog('ホスト：作り直し（同じコード・同じ状態）'); startHost(roomCode, S); } }
+    else if (peer.disconnected && Date.now() - lastReTry > 5000){ lastReTry = Date.now(); netLog('ホスト：サーバーへ再接続を試行'); try { peer.reconnect(); } catch(e){} }
+  }
+  if (role === 'guest' && peer && !peer.destroyed && peer.disconnected && Date.now() - lastReTry > 5000){ lastReTry = Date.now(); netLog('参加：サーバーへ再接続を試行'); try { peer.reconnect(); } catch(e){} }
   if (role === 'host'){
     let changed = false;
-    for (const c of [...conns]) if (c.lastSeen && Date.now() - c.lastSeen > 25000){ conns.delete(c); try { c.close(); } catch(e){} changed = true; }
+    for (const c of [...conns]) if (c.lastSeen && Date.now() - c.lastSeen > 25000){ netLog('ホスト：25秒応答のない相手を整理'); conns.delete(c); try { c.close(); } catch(e){} changed = true; }
     if (changed) render();
   }
 }, 4000);
@@ -1946,7 +1987,8 @@ function render(){
     idle:['', 'オンライン・未接続'], connecting:['wait','接続中…'], hosting:['on', `<span class="pc">${esc(roomCode)}・</span>${conns.size ? '接続中' : '相手待ち'}`],
     connected:['on', `<span class="pc">${esc(roomCode)}・</span>接続中`], lost:['wait','再接続中…'], notfound:['bad','対戦が見つかりません'], error:['bad','接続できません']
   };
-  const [cls, txt] = mode === 'online' ? (states[netState] || states.idle) : ['on', '1台で対戦'];
+  const ns = role === 'host' && [...conns].some(c => c.open) ? 'hosting' : netState;   // サーバーと切れていても相手とつながっていれば接続中
+  const [cls, txt] = mode === 'online' ? (states[ns] || states.idle) : ['on', '1台で対戦'];
   pill.innerHTML = `<span class="dot ${cls}"></span>${txt}`;   // txt は固定文とエスケープ済みのコードのみ
   pill.classList.toggle('offline', mode !== 'online');
   $('lobby').hidden = !!role; $('room').hidden = !role;
@@ -2094,6 +2136,7 @@ $('m-off').onclick = () => {
 };
 $('m-on').onclick = () => { if (mode === 'online') return; persist(); hist.length = 0; mode = 'online'; store.set('kt-mode', 'online'); S = defaults(); loadView(); render(); };
 $('host').onclick = () => startHost(newCode(), null);
+$('copynetlog').onclick = async () => { const t = navigator.userAgent + '\n' + netLogs.join('\n'); try { await navigator.clipboard.writeText(t); toast('接続の記録をコピーしました'); } catch(e){ toast('コピーできませんでした'); } };
 $('join').onclick = () => {
   const c = $('joincode').value.trim().toUpperCase();
   if (!/^[A-Z0-9]{4}$/.test(c)){ toast('4文字の対戦コードを入力してください'); return; }
