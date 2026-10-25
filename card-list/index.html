@@ -73,6 +73,21 @@ header.bar .wrap{display:flex;align-items:center;gap:8px;min-height:56px}
 .empty{border:2px dashed var(--line);border-radius:14px;padding:22px 16px;text-align:center;color:var(--sub);font-size:14px}
 .home .actions{display:flex;gap:8px;flex-wrap:wrap}
 .official{display:inline-flex;align-items:center;gap:6px;color:var(--accent);font-weight:600;font-size:14px;text-decoration:underline;text-underline-offset:3px}
+.rule-box{background:var(--surface);border:1.5px solid var(--tag);border-left-width:6px;border-radius:10px;padding:8px 12px;font-size:14px;margin:0 0 10px}
+.rule-box b{font-weight:700}
+.remain.neg{color:var(--bad)}
+.res.q{background:var(--bg);color:var(--ink);font-weight:600;white-space:pre-wrap;word-break:break-word}
+.link-chip{font-size:11px;font-weight:700;color:var(--accent);align-self:flex-start}
+.q-btn{border:0;background:none;color:var(--accent);font-size:14px;padding:4px 0;text-decoration:underline;text-underline-offset:3px}
+.q-area{grid-column:1 / -1}
+.q-area textarea{min-height:56px;font-size:15px}
+.ctl-foot{grid-column:1 / -1;display:flex;gap:18px;flex-wrap:wrap;align-items:center}
+.settle{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:10px 12px;margin-top:10px;font-size:14px}
+.settle .tot{font-size:20px;font-weight:700}
+.settle-row{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-top:8px}
+.paid-btn[aria-pressed=true]{background:var(--ok);border-color:var(--ok);color:#fff}
+select{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:10px 12px;font-size:16px;width:100%}
+.backup{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px}
 .foot-note{color:var(--sub);font-size:12px;margin:36px 0 8px;line-height:1.7}
 
 /* owner list */
@@ -128,8 +143,8 @@ textarea{resize:vertical;min-height:70px}
 .progress i{display:block;height:100%;background:var(--ok);width:0;transition:width .3s}
 .shop-stats{display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;font-size:14px;color:var(--sub);margin:6px 0 10px}
 .shop-stats b{color:var(--ink)}
-.chips{display:flex;gap:6px;margin:6px 0 12px}
-.chip{border:1px solid var(--line);background:var(--surface);border-radius:999px;padding:6px 14px;font-size:14px}
+.chips{display:flex;gap:6px;margin:6px 0 12px;flex-wrap:wrap}
+.chip{white-space:nowrap;border:1px solid var(--line);background:var(--surface);border-radius:999px;padding:6px 14px;font-size:14px}
 .chip[aria-pressed=true]{background:var(--ink);color:var(--bg);border-color:var(--ink)}
 .preview-note{background:var(--tag);color:var(--tag-ink);border-radius:12px;padding:10px 12px;font-size:14px;margin:10px 0}
 
@@ -162,7 +177,8 @@ textarea{resize:vertical;min-height:70px}
 .price-in input{max-width:130px;text-align:right}
 .price-in span{font-size:14px;color:var(--sub);white-space:nowrap}
 .over{color:var(--bad);font-size:13px;font-weight:700}
-.miss-btn{grid-column:1 / -1;justify-self:start;border:0;background:none;color:var(--sub);font-size:14px;padding:4px 0;text-decoration:underline;text-underline-offset:3px}
+.over.fine{color:var(--sub)}
+.miss-btn{border:0;background:none;color:var(--sub);font-size:14px;padding:4px 0;text-decoration:underline;text-underline-offset:3px}
 .miss-btn[aria-pressed=true]{color:var(--bad);font-weight:700}
 
 /* modal */
@@ -232,6 +248,9 @@ const rid = () => Math.random().toString(36).slice(2, 7);
 const now = () => Date.now();
 const fmtDate = t => { const d = new Date(t); return `${d.getMonth()+1}/${d.getDate()} ${d.getHours()}:${String(d.getMinutes()).padStart(2,'0')}`; };
 const OFFICIAL = 'https://tcg.kamitsubaki.jp/cardlist/';
+const RULES = {ask:'予算を超えるときは、買う前に相談してください', ok10:'1割くらいの超えなら買ってOK', free:'値段は任せます'};
+const safeUrl = u => /^https?:\/\//i.test(u || '') ? u : '';
+const linkLabel = u => { try { return new URL(u).hostname.endsWith('kamitsubaki.jp') ? '公式ページで見る' : 'リンクを開く'; } catch(e){ return 'リンクを開く'; } };
 const LINE_LIMIT = 4900; // LINE のメッセージは 5000 文字まで
 
 function store(k, v){ try { localStorage.setItem(k, JSON.stringify(v)); return true; } catch(e){ toast('保存できませんでした。写真が多すぎる可能性があります（ブラウザの保存容量の上限）'); return false; } }
@@ -291,6 +310,19 @@ const saveRecv = () => store('kcl-recv', recv);
 
 let view = {name:'home'};
 
+/* 画面を消さない（お店で使う買い物画面だけ） */
+const wakeOK = 'wakeLock' in navigator;
+let wakePref = load('kcl-wake', true), wakeLock = null, wakeWanted = false;
+async function setWake(on){
+  wakeWanted = on;
+  if (on && wakeOK && document.visibilityState === 'visible'){
+    if (wakeLock) return;
+    try { wakeLock = await navigator.wakeLock.request('screen'); wakeLock.addEventListener('release', () => { wakeLock = null; }); } catch(e){}
+  } else if (!on && wakeLock){ wakeLock.release().catch(() => {}); wakeLock = null; }
+}
+document.addEventListener('visibilitychange', () => { if (wakeWanted) setWake(true); });
+document.addEventListener('pointerdown', () => { if (wakeWanted && !wakeLock) setWake(true); }, {passive: true});
+
 function listTotals(items, resOf){
   let kinds = items.length, cards = 0, budget = 0, budgetMissing = 0, done = 0, spent = 0, bought = 0;
   for (const it of items){
@@ -304,6 +336,9 @@ function listTotals(items, resOf){
     }
   }
   return {kinds, cards, budget, budgetMissing, done, spent, bought};
+}
+function budgetBase(l, t){ return l.cap || t.budget || 0; }
+function settleTotal(spent, extra){ return spent + (extra || 0);
 }
 
 /* ---------- 画面: 一覧 ---------- */
@@ -321,6 +356,7 @@ function go(v){ view = v; render(); window.scrollTo(0, 0); }
 $('#backBtn').onclick = () => { history.replaceState(null, '', location.pathname); go({name:'home'}); };
 
 function render(){
+  setWake(view.name === 'shop' && wakePref);
   if (view.name === 'home') renderHome();
   else if (view.name === 'own') renderOwn();
   else if (view.name === 'shop') renderShop();
@@ -360,6 +396,10 @@ function renderHome(){
     }).join('') : `<div class="empty">友人から届いたリンクを開くと、ここに入ります。</div>`}
     <div class="actions" style="margin-top:10px"><button class="btn" type="button" id="openFile">写真入りファイルを開く</button></div>
 
+    <h2>バックアップ</h2>
+    <p class="lead" style="margin:0">リストと記録をまとめてファイルに書き出します。機種変更のときや、ブラウザのデータを消す前に。</p>
+    <div class="backup"><button class="btn" type="button" id="bkOut">書き出す</button><button class="btn" type="button" id="bkIn">読み込む</button></div>
+
     <p class="foot-note">データはこの端末のブラウザにだけ保存されます（サーバーには送りません）。ブラウザのデータを消すとリストも消えます。<br>
     <a href="../" style="color:var(--sub)">神椿TCG tokenカウンター</a> と同じ作者の非公式ファンツールです。</p>
   </section>`;
@@ -368,6 +408,13 @@ function renderHome(){
     lists.push(l); saveLists(); go({name:'own', id:l.id});
   };
   $('#openFile').onclick = () => $('#fileList').click();
+  $('#bkIn').onclick = () => $('#fileList').click();
+  $('#bkOut').onclick = async () => {
+    if (!lists.length && !recv.length) return toast('書き出すリストがまだありません');
+    const d = new Date(), ymd = `${d.getFullYear()}${String(d.getMonth()+1).padStart(2,'0')}${String(d.getDate()).padStart(2,'0')}`;
+    const data = {kclBackup: 1, at: now(), name: myName, lists, recv};
+    await shareFiles([new File([JSON.stringify(data)], `cardlist-backup-${ymd}.json`, {type:'application/json'})], 'バックアップ');
+  };
   document.querySelectorAll('[data-own]').forEach(b => b.onclick = () => go({name:'own', id:b.dataset.own}));
   document.querySelectorAll('[data-recv]').forEach(b => b.onclick = () => go({name:'shop', id:b.dataset.recv}));
 }
@@ -377,11 +424,12 @@ const curOwn = () => lists.find(l => l.id === view.id);
 
 function resBadge(it, r){
   if (!r) return '';
-  if (r.x && !r.b) return `<div class="res none">見つからなかった</div>`;
+  const q = r.q ? `<div class="res q">質問・ひとこと：${esc(r.q)}</div>` : '';
+  if (r.x && !r.b) return `<div class="res none">見つからなかった</div>` + q;
   const price = r.a ? `（${yen(r.a)}/枚）` : '';
-  if ((r.b || 0) >= it.qty) return `<div class="res ok num">買えた ${r.b}枚${price}</div>`;
-  if (r.b) return `<div class="res part num">${r.b}/${it.qty}枚 買えた${price}</div>`;
-  return '';
+  if ((r.b || 0) >= it.qty) return `<div class="res ok num">買えた ${r.b}枚${price}</div>` + q;
+  if (r.b) return `<div class="res part num">${r.b}/${it.qty}枚 買えた${price}</div>` + q;
+  return q;
 }
 
 function tagHtml(it){
@@ -399,17 +447,26 @@ function renderOwn(){
         <div><label for="fFriend">買ってきてくれる人</label><input id="fFriend" type="text" placeholder="例：たろう" value="${esc(l.friend)}"></div>
         <div><label for="fOwner">自分の名前</label><input id="fOwner" type="text" placeholder="例：はなこ" value="${esc(l.owner)}"></div>
       </div>
+      <div><label for="fCap">全体の予算（任意）</label><div class="price-in"><input id="fCap" type="number" inputmode="numeric" min="0" step="100" placeholder="上限なし" value="${l.cap || ''}" style="max-width:none"><span>円まで</span></div></div>
+      <div><label for="fRule">予算を超えるとき</label><select id="fRule">
+        ${Object.entries(RULES).map(([k, v]) => `<option value="${k}" ${(l.rule || 'ask') === k ? 'selected' : ''}>${v}</option>`).join('')}</select></div>
     </div>
     <div class="summary num"><span><b>${t.kinds}</b> 種類</span><span><b>${t.cards}</b> 枚</span>
-      <span>予算合計 <b>${yen(t.budget)}</b>${t.budgetMissing && t.kinds ? `（予算なし${t.budgetMissing}種類を除く）` : ''}</span></div>
+      <span>カードごとの予算の合計 <b>${yen(t.budget)}</b>${t.budgetMissing && t.kinds ? `（予算なし${t.budgetMissing}種類を除く）` : ''}</span>
+      ${l.cap && t.budget > l.cap ? `<span style="color:var(--bad)">全体の予算（${yen(l.cap)}）を超えています</span>` : ''}</div>
     ${l.rt ? `<div class="result-note"><b>${esc(l.rf || '友人')}さんから結果が届きました</b>（${fmtDate(l.rt)}）<br>
-      <span class="num">${t.done}/${t.kinds}種類 済み・${t.bought}枚 購入・合計 ${yen(t.spent)}</span>${l.rn ? `<p>「${esc(l.rn)}」</p>` : ''}</div>` : ''}
+      <span class="num">${t.done}/${t.kinds}種類 済み・${t.bought}枚 購入</span>${l.rn ? `<p>「${esc(l.rn)}」</p>` : ''}
+      <div class="settle"><div>立て替えてもらった合計</div>
+        <div class="tot num">${yen(settleTotal(t.spent, l.re))}</div>
+        <div class="num" style="color:var(--sub);font-size:13px">カード ${yen(t.spent)}${l.re ? `＋送料・交通費など ${yen(l.re)}` : ''}</div>
+        <div class="settle-row"><button class="btn paid-btn" type="button" id="paidBtn" aria-pressed="${!!l.paid}">${l.paid ? '支払い済み' : '支払ったらタップ'}</button>
+          ${l.paid && l.paidAt ? `<span class="num" style="color:var(--sub);font-size:13px">${fmtDate(l.paidAt)}</span>` : ''}</div></div></div>` : ''}
     <div class="grid" id="grid">
       ${l.items.map((it, i) => `<button class="card" type="button" data-item="${it.id}">
         <div class="pic">${imgSrc(it) ? `<img src="${esc(imgSrc(it))}" alt="" loading="lazy">` : '写真なし'}<span class="no num">${i + 1}</span></div>
         <div class="body"><div class="name">${esc(it.name)}</div>${it.code ? `<div class="code">${esc(it.code)}</div>` : ''}
           ${tagHtml(it)}${it.must ? '<span class="must">必ず</span>' : '<span class="maybe">あれば</span>'}
-          ${it.memo ? `<div class="memo">${esc(it.memo)}</div>` : ''}${resBadge(it, it.res)}</div>
+          ${it.memo ? `<div class="memo">${esc(it.memo)}</div>` : ''}${it.link ? '<span class="link-chip">リンクあり</span>' : ''}${resBadge(it, it.res)}</div>
       </button>`).join('')}
       <button class="add-card" type="button" id="addCard">＋ カードを追加</button>
     </div>`;
@@ -417,6 +474,10 @@ function renderOwn(){
   bindField('#fTitle', 'title', () => $('#hTitle').textContent = l.title || '無題のリスト');
   bindField('#fFriend', 'friend');
   bindField('#fOwner', 'owner', () => { myName = l.owner; store('kcl-name', myName); });
+  $('#fCap').oninput = e => { const v = parseInt(e.target.value, 10); l.cap = v > 0 ? v : null; l.updated = now(); saveLists(); };
+  $('#fCap').onchange = () => { const y = window.scrollY; renderOwn(); window.scrollTo(0, y); };
+  $('#fRule').onchange = e => { l.rule = e.target.value; l.updated = now(); saveLists(); };
+  if ($('#paidBtn')) $('#paidBtn').onclick = () => { l.paid = !l.paid; l.paidAt = l.paid ? now() : null; saveLists(); const y = window.scrollY; renderOwn(); window.scrollTo(0, y); };
   $('#addCard').onclick = () => editItem(l, null);
   document.querySelectorAll('[data-item]').forEach(b => b.onclick = () => editItem(l, l.items.find(x => x.id === b.dataset.item)));
   setBottom(`<button class="btn" type="button" id="bAdd">＋ カードを追加</button><button class="btn primary" type="button" id="bShare" ${l.items.length ? '' : 'disabled'}>友人に送る</button>`);
@@ -431,10 +492,10 @@ function ownMenu(l){
     <div class="step"><h3>リストを複製</h3><p>同じカードで別のリストを作ります（結果は引き継ぎません）。</p><button class="btn block" type="button" id="mDup">複製する</button></div>
     <div class="step"><h3>リストを削除</h3><p>この端末から消します。元に戻せません。</p><button class="btn block danger" type="button" id="mDel">削除する</button></div>`);
   $('#mShare', m).onclick = () => { closeSheet(m); shareSheet(l); };
-  $('#mClear', m).onclick = () => { if (!confirm('届いた結果を消しますか？')) return; l.items.forEach(it => delete it.res); delete l.rt; delete l.rf; delete l.rn; l.updated = now(); saveLists(); closeSheet(m); render(); toast('結果をクリアしました'); };
+  $('#mClear', m).onclick = () => { if (!confirm('届いた結果を消しますか？')) return; l.items.forEach(it => delete it.res); ['rt','rf','rn','re','paid','paidAt'].forEach(k => delete l[k]); l.updated = now(); saveLists(); closeSheet(m); render(); toast('結果をクリアしました'); };
   $('#mDup', m).onclick = () => {
     const c = JSON.parse(JSON.stringify(l)); c.id = rid() + rid(); c.title = (l.title || '無題のリスト') + '（コピー）'; c.updated = now();
-    c.items.forEach(it => { delete it.res; it.id = rid(); }); delete c.rt; delete c.rf; delete c.rn;
+    c.items.forEach(it => { delete it.res; it.id = rid(); }); ['rt','rf','rn','re','paid','paidAt'].forEach(k => delete c[k]);
     lists.push(c); if (saveLists()){ closeSheet(m); go({name:'own', id:c.id}); toast('複製しました'); }
   };
   $('#mDel', m).onclick = () => { if (!confirm(`「${l.title || '無題のリスト'}」を削除しますか？`)) return; lists = lists.filter(x => x !== l); saveLists(); closeSheet(m); go({name:'home'}); toast('削除しました'); };
@@ -454,7 +515,7 @@ document.addEventListener('keydown', e => { if (e.key === 'Escape'){ const ms = 
 
 function editItem(l, it){
   const isNew = !it;
-  const d = it ? JSON.parse(JSON.stringify(it)) : {id: rid(), name: '', code: '', qty: 1, budget: null, must: true, memo: '', img: '', url: ''};
+  const d = it ? JSON.parse(JSON.stringify(it)) : {id: rid(), name: '', code: '', qty: 1, budget: null, must: true, memo: '', img: '', url: '', link: ''};
   const r = d.res || {};
   const m = openSheet(isNew ? 'カードを追加' : 'カードを編集', `
     <div class="form-row"><span class="lb">写真</span>
@@ -472,6 +533,8 @@ function editItem(l, it){
       </div></div>
     <div class="form-row"><label for="eName">カード名</label><input id="eName" type="text" placeholder="例：【証明】祭壇" value="${esc(d.name)}"></div>
     <div class="form-row"><label for="eCode">型番・レアリティ（見分け用・任意）</label><input id="eCode" type="text" placeholder="例：BP02-012 SR／パラレル" value="${esc(d.code)}"></div>
+    <div class="form-row"><label for="eLink">リンク（任意）</label><input id="eLink" type="url" inputmode="url" placeholder="https://tcg.kamitsubaki.jp/deck_detail/…" value="${esc(d.link)}">
+      <div class="hint">公式サイトのデッキページなど。友人の画面に「公式ページで見る」ボタンが出ます。</div></div>
     <div class="row2 form-row">
       <div><span class="lb">欲しい枚数</span>
         <div class="stepper"><button type="button" id="eQm" aria-label="1枚減らす">−</button><span class="v num" id="eQ"></span><button type="button" id="eQp" aria-label="1枚増やす">＋</button></div></div>
@@ -487,6 +550,7 @@ function editItem(l, it){
         <div><label class="lb" for="eRa" style="display:block;font-size:13px;color:var(--sub)">実際の値段（1枚）</label><input id="eRa" type="number" inputmode="numeric" min="0" value="${r.a ?? ''}" placeholder="円"></div>
       </div>
       <label style="display:flex;gap:8px;align-items:center;margin-top:10px;font-size:14px"><input type="checkbox" id="eRx" ${r.x ? 'checked' : ''}> 見つからなかった</label>
+      ${r.q ? `<div class="res q" style="margin-top:10px">質問・ひとこと：${esc(r.q)}</div>` : ''}
     </details>`}
     <div class="sheet-actions">${isNew ? '' : '<button class="btn danger" type="button" id="eDel">削除</button>'}<button class="btn primary" type="button" id="eSave">${isNew ? '追加する' : '保存する'}</button></div>`);
   const pv = () => {
@@ -512,11 +576,14 @@ function editItem(l, it){
   if (isNew) setTimeout(() => $('#eName', m).focus(), 50);
   $('#eSave', m).onclick = () => {
     d.name = $('#eName', m).value.trim(); d.code = $('#eCode', m).value.trim(); d.memo = $('#eMemo', m).value.trim();
+    d.link = $('#eLink', m).value.trim();
+    if (d.link && !safeUrl(d.link)){ toast('リンクは https:// から始まるアドレスを入れてください'); $('#eLink', m).focus(); return; }
     const b = parseInt($('#eBudget', m).value, 10); d.budget = b > 0 ? b : null;
     if (!d.name){ toast('カード名を入れてください'); $('#eName', m).focus(); return; }
     if (!isNew){
       const rb = parseInt($('#eRb', m).value, 10), ra = parseInt($('#eRa', m).value, 10), rx = $('#eRx', m).checked;
-      if (rb > 0 || ra > 0 || rx) d.res = {b: rb > 0 ? rb : 0, a: ra > 0 ? ra : 0, x: rx}; else delete d.res;
+      const rq = (it.res && it.res.q) || '';
+      if (rb > 0 || ra > 0 || rx || rq) d.res = {b: rb > 0 ? rb : 0, a: ra > 0 ? ra : 0, x: rx, q: rq}; else delete d.res;
     }
     if (isNew) l.items.push(d); else l.items[l.items.indexOf(it)] = d;
     l.updated = now();
@@ -532,12 +599,14 @@ async function thumbOf(it){
   try { return drawTo(await loadImg(it.img), 84, 0.5); } catch(e){ return ''; }
 }
 function packList(l, withThumbs){
-  return {k:1, i:l.id, t:l.title, f:l.friend, o:l.owner, v:l.updated,
-    c:l.items.map(it => { const o = {i:it.id, n:it.name, q:it.qty}; if (it.code) o.c = it.code; if (it.budget) o.p = it.budget; if (!it.must) o.r = 0; if (it.memo) o.m = it.memo; if (it.url) o.u = it.url; if (withThumbs && it._t) o.g = it._t; return o; })};
+  const o = {k:1, i:l.id, t:l.title, f:l.friend, o:l.owner, v:l.updated,
+    c:l.items.map(it => { const o = {i:it.id, n:it.name, q:it.qty}; if (it.code) o.c = it.code; if (it.budget) o.p = it.budget; if (!it.must) o.r = 0; if (it.memo) o.m = it.memo; if (it.url) o.u = it.url; if (it.link) o.l = it.link; if (withThumbs && it._t) o.g = it._t; return o; })};
+  if (l.cap) o.b = l.cap; if (l.rule && l.rule !== 'ask') o.r = l.rule;
+  return o;
 }
 function unpackList(o){
-  return {id:o.i, title:o.t || '', friend:o.f || '', owner:o.o || '', updated:o.v || now(),
-    items:(o.c || []).map(c => ({id:c.i, name:c.n, qty:c.q || 1, code:c.c || '', budget:c.p || null, must:c.r !== 0, memo:c.m || '', url:c.u || '', img:c.img || c.g || ''}))};
+  return {id:o.i, title:o.t || '', friend:o.f || '', owner:o.o || '', updated:o.v || now(), cap:o.b || null, rule:RULES[o.r] ? o.r : 'ask',
+    items:(o.c || []).map(c => ({id:c.i, name:c.n, qty:c.q || 1, code:c.c || '', budget:c.p || null, must:c.r !== 0, memo:c.m || '', url:c.u || '', link:safeUrl(c.l), img:c.img || c.g || ''}))};
 }
 const baseUrl = () => location.origin + location.pathname;
 
@@ -667,6 +736,13 @@ function roundRect(g, x, y, w, h, r){ g.beginPath(); g.moveTo(x + r, y); g.arcTo
 
 /* ---------- 画面: 買い物（友人） ---------- */
 const curRecv = () => recv.find(r => r.list.id === view.id);
+const openQ = new Set();
+function overRule(l, budget, price){
+  const rule = l.rule || 'ask';
+  if (rule === 'free') return '値段は任せる';
+  if (rule === 'ok10') return price <= Math.floor(budget * 1.1) ? '1割以内なのでOK' : '1割を超えています。相談を';
+  return '買う前に相談';
+}
 let shopFilter = 'all';
 
 function renderShop(){
@@ -684,24 +760,27 @@ function renderShop(){
       <h1>${esc(l.title || 'カードの買い物リスト')}</h1>
       <p style="margin:-4px 0 10px"><a class="official" href="${OFFICIAL}" target="_blank" rel="noopener">公式カードリストで確認する</a></p>
       ${isMine ? `<div class="preview-note">これは自分のリストです。友人にはこう見えます（ここでの記録は試し用です）。</div>` : ''}
+      ${budgetBase(l, t) || (l.rule && l.rule !== 'ask') ? `<div class="rule-box"><b>予算のルール：</b>${esc(RULES[l.rule] || RULES.ask)}</div>` : ''}
       <div class="progress" role="progressbar" aria-valuemin="0" aria-valuemax="${t.kinds}" aria-valuenow="${t.done}"><i style="width:${t.kinds ? t.done / t.kinds * 100 : 0}%"></i></div>
       <div class="shop-stats num"><span><b>${t.done}</b>/${t.kinds}種類 済み・<b>${t.bought}</b>/${t.cards}枚</span>
-        <span>使った金額 <b>${yen(t.spent)}</b>${t.budget ? `／予算 ${yen(t.budget)}` : ''}</span></div>
+        <span>使った金額 <b>${yen(t.spent)}</b>${budgetBase(l, t) ? `／残り <b class="remain ${budgetBase(l, t) - t.spent < 0 ? 'neg' : ''}">${budgetBase(l, t) - t.spent < 0 ? '−' + yen(t.spent - budgetBase(l, t)) : yen(budgetBase(l, t) - t.spent)}</b>（${l.cap ? '全体の予算' : '予算'} ${yen(budgetBase(l, t))}）` : ''}</span></div>
       <div class="chips" role="group" aria-label="表示">
         <button class="chip" type="button" data-f="all" aria-pressed="${shopFilter === 'all'}">すべて</button>
         <button class="chip" type="button" data-f="todo" aria-pressed="${shopFilter === 'todo'}">まだのもの</button>
+        ${wakeOK ? `<button class="chip" type="button" id="wakeBtn" aria-pressed="${wakePref}" style="margin-left:auto">${wakePref ? '画面を消さない' : '画面を消さない：オフ'}</button>` : ''}
       </div>
     </section>
     <div id="items">
-    ${shown.length ? shown.map(({it, i}) => itemHtml(it, i, r.got[it.id] || {})).join('') : `<div class="empty">ぜんぶ済みました。下の「結果を送る」で知らせましょう。</div>`}
+    ${shown.length ? shown.map(({it, i}) => itemHtml(it, i, r.got[it.id] || {}, l)).join('') : `<div class="empty">ぜんぶ済みました。下の「結果を送る」で知らせましょう。</div>`}
     </div>`;
   document.querySelectorAll('[data-f]').forEach(b => b.onclick = () => { shopFilter = b.dataset.f; renderShop(); });
+  if ($('#wakeBtn')) $('#wakeBtn').onclick = () => { wakePref = !wakePref; store('kcl-wake', wakePref); setWake(wakePref); refreshShop(r); toast(wakePref ? '買い物中は画面を消さないようにします' : '画面はふだん通り消えます'); };
   bindItems(r);
   setBottom(`<button class="btn primary" type="button" id="bSend">結果を送る</button>`);
   $('#bSend').onclick = () => sendResult(r);
 }
 
-function itemHtml(it, i, g){
+function itemHtml(it, i, g, l){
   const done = (g.b || 0) >= it.qty, over = it.budget && g.a && g.a > it.budget;
   const src = imgSrc(it);
   return `<article class="item ${done ? 'done' : ''} ${g.x && !g.b ? 'miss' : ''}" data-id="${it.id}">
@@ -711,6 +790,7 @@ function itemHtml(it, i, g){
       <div class="name">${esc(it.name)}</div>${it.code ? `<div class="code">${esc(it.code)}</div>` : ''}
       <div class="tags">${tagHtml(it)}${it.must ? '<span class="must">必ず</span>' : '<span class="maybe">あれば</span>'}</div>
       ${it.memo ? `<div class="memo">${esc(it.memo)}</div>` : ''}
+      ${safeUrl(it.link) ? `<a class="official" href="${esc(it.link)}" target="_blank" rel="noopener">${linkLabel(it.link)}</a>` : ''}
     </div>
     <div class="controls">
       <span class="lb">買えた</span>
@@ -720,9 +800,13 @@ function itemHtml(it, i, g){
         ${done ? '' : `<button type="button" class="allbtn" data-act="all">全部買えた</button>`}</div>
       <span class="lb">値段</span>
       <div><div class="price-in"><input type="number" inputmode="numeric" min="0" step="10" placeholder="1枚の値段" value="${g.a || ''}" data-act="a" aria-label="${esc(it.name)}の1枚の値段"><span>円/枚</span></div>
-        ${over ? `<div class="over num">予算（${yen(it.budget)}）より ${yen(g.a - it.budget)} 高い</div>` : ''}
+        ${over ? `<div class="over num ${overRule(l, it.budget, g.a).endsWith('OK') || overRule(l, it.budget, g.a) === '値段は任せる' ? 'fine' : ''}">予算（${yen(it.budget)}）より ${yen(g.a - it.budget)} 高い：${overRule(l, it.budget, g.a)}</div>` : ''}
         ${g.b && g.a ? `<div class="lb num" style="margin-top:2px">小計 ${yen(g.a * g.b)}</div>` : ''}</div>
-      <button class="miss-btn" type="button" data-act="x" aria-pressed="${!!g.x}">${g.x ? '見つからなかった（取り消す）' : '見つからなかった'}</button>
+      <div class="ctl-foot">
+        <button class="miss-btn" type="button" data-act="x" aria-pressed="${!!g.x}">${g.x ? '見つからなかった（取り消す）' : '見つからなかった'}</button>
+        ${g.q || openQ.has(it.id) ? '' : `<button class="q-btn" type="button" data-act="qopen">質問・ひとことを書く</button>`}
+      </div>
+      ${g.q || openQ.has(it.id) ? `<div class="q-area"><textarea data-act="q" placeholder="例：パラレルしか無いけどいい？／傷ありなら安かった" aria-label="${esc(it.name)}への質問・ひとこと">${esc(g.q || '')}</textarea></div>` : ''}
     </div>
   </article>`;
 }
@@ -739,10 +823,15 @@ function bindItems(r){
     if (b.dataset.act === 'm') g.b = Math.max(0, (g.b || 0) - 1);
     if (b.dataset.act === 'all') g.b = it.qty;
     if (b.dataset.act === 'x') g.x = !g.x;
+    if (b.dataset.act === 'qopen'){ openQ.add(id); refreshShop(r); const ta = document.querySelector(`.item[data-id="${id}"] textarea`); if (ta) ta.focus(); return; }
     if (g.b > 0 && b.dataset.act !== 'x') g.x = false;
     r.touched = now(); saveRecv(); refreshShop(r);
   };
   box.oninput = e => {
+    if (e.target.dataset.act === 'q'){
+      const id = e.target.closest('.item').dataset.id, g = r.got[id] = r.got[id] || {b:0, a:0, x:false};
+      g.q = e.target.value; r.touched = now(); saveRecv(); return;
+    }
     if (e.target.dataset.act !== 'a') return;
     const id = e.target.closest('.item').dataset.id, g = r.got[id] = r.got[id] || {b:0, a:0, x:false};
     const v = parseInt(e.target.value, 10); g.a = v > 0 ? v : 0; r.touched = now(); saveRecv();
@@ -765,15 +854,29 @@ async function sendResult(r){
   const m = openSheet('結果を送る', `
     <p style="margin:0 0 12px;font-size:14px" class="num">${t.done}/${t.kinds}種類 済み・${t.bought}枚 購入・合計 <b>${yen(t.spent)}</b></p>
     <div class="form-row"><label for="rName">あなたの名前</label><input id="rName" type="text" value="${esc(r.me || l.friend || '')}" placeholder="例：たろう"></div>
-    <div class="form-row"><label for="rNote">ひとこと（任意）</label><textarea id="rNote" placeholder="例：3番は売り切れでした。来週入荷するそうです">${esc(r.note || '')}</textarea></div>
+    <div class="form-row"><label for="rExtra">送料・交通費など（任意）</label><div class="price-in"><input id="rExtra" type="number" inputmode="numeric" min="0" step="10" value="${r.extra || ''}" placeholder="0" style="max-width:none"><span>円</span></div></div>
+    <div class="settle" style="margin:0 0 14px"><div>立て替えた合計</div><div class="tot num" id="rTot"></div>
+      <div class="settle-row"><button class="btn" type="button" id="rBill">請求の文面をコピー</button></div>
+      <div class="hint">PayPay などで請求するときに貼り付けられます。</div></div>
+    <div class="form-row"><label for="rNote">全体へのひとこと（任意）</label><textarea id="rNote" placeholder="例：3番は売り切れでした。来週入荷するそうです">${esc(r.note || '')}</textarea></div>
     <div class="step"><h3>${l.owner ? esc(l.owner) + 'さんに' : ''}結果を送る</h3><p>リンクを開くと、相手のリストに結果が入ります。</p>
       <div class="btns"><button class="btn line" type="button" id="rLine">LINEで送る</button><button class="btn" type="button" id="rShare">ほかのアプリで送る</button><button class="btn" type="button" id="rCopy">コピー</button></div></div>`);
   if (!navigator.share) $('#rShare', m).classList.add('hidden');
+  const readExtra = () => { const v = parseInt($('#rExtra', m).value, 10); r.extra = v > 0 ? v : 0; };
+  const showTot = () => { readExtra(); $('#rTot', m).textContent = yen(settleTotal(t.spent, r.extra)); };
+  showTot(); $('#rExtra', m).oninput = () => { showTot(); saveRecv(); };
+  $('#rBill', m).onclick = () => {
+    readExtra();
+    const lines = l.items.map((it, i) => { const g = r.got[it.id]; return g && g.b && g.a ? `${i + 1}. ${it.name} ×${g.b}（${yen(g.a)}/枚）${yen(g.a * g.b)}` : null; }).filter(Boolean);
+    if (r.extra) lines.push(`送料・交通費など ${yen(r.extra)}`);
+    copyText(`${l.owner ? l.owner + 'さん、' : ''}カードの立て替え分です。\n${lines.join('\n')}\n合計 ${yen(settleTotal(t.spent, r.extra))}`);
+  };
   const make = async () => {
-    r.me = $('#rName', m).value.trim(); r.note = $('#rNote', m).value.trim(); saveRecv();
-    const k = l.items.map(it => { const g = r.got[it.id]; return g && (g.b || g.a || g.x) ? [it.id, g.b || 0, g.a || 0, g.x ? 1 : 0] : null; }).filter(Boolean);
-    const url = baseUrl() + '#r=' + await pack({k:1, i:l.id, n:r.me, m:r.note, t:now(), r:k});
-    return `${l.title ? '「' + l.title + '」' : 'カード'}の結果です（${t.done}/${t.kinds}種類 済み・合計 ${yen(t.spent)}）。\n${url}`;
+    r.me = $('#rName', m).value.trim(); r.note = $('#rNote', m).value.trim(); readExtra(); saveRecv();
+    const k = l.items.map(it => { const g = r.got[it.id]; if (!g || !(g.b || g.a || g.x || g.q)) return null; const a = [it.id, g.b || 0, g.a || 0, g.x ? 1 : 0]; if (g.q) a.push(g.q); return a; }).filter(Boolean);
+    const o = {k:1, i:l.id, n:r.me, m:r.note, t:now(), r:k}; if (r.extra) o.e = r.extra;
+    const url = baseUrl() + '#r=' + await pack(o);
+    return `${l.title ? '「' + l.title + '」' : 'カード'}の結果です（${t.done}/${t.kinds}種類 済み・立て替え ${yen(settleTotal(t.spent, r.extra))}）。\n${url}`;
   };
   $('#rLine', m).onclick = async () => { location.href = 'https://line.me/R/share?text=' + encodeURIComponent(await make()); };
   $('#rShare', m).onclick = async () => navigator.share({text: await make()}).catch(() => {});
@@ -806,8 +909,8 @@ function applyResult(o){
   $('#aNo', m).onclick = () => { closeSheet(m); go({name:'own', id:l.id}); };
   $('#aYes', m).onclick = () => {
     l.items.forEach(it => delete it.res);
-    for (const [id, b, a, x] of o.r || []){ const it = l.items.find(z => z.id === id); if (it) it.res = {b, a, x: !!x}; }
-    l.rt = o.t; l.rf = o.n || ''; l.rn = o.m || ''; l.updated = now(); saveLists();
+    for (const [id, b, a, x, q] of o.r || []){ const it = l.items.find(z => z.id === id); if (it) it.res = {b, a, x: !!x, q: q || ''}; }
+    l.rt = o.t; l.rf = o.n || ''; l.rn = o.m || ''; l.re = o.e || 0; l.paid = false; l.paidAt = null; l.updated = now(); saveLists();
     closeSheet(m); go({name:'own', id:l.id}); toast('結果をリストに入れました');
   };
 }
@@ -837,10 +940,29 @@ async function handleHash(){
 $('#fileList').onchange = async e => {
   const f = e.target.files[0]; e.target.value = ''; if (!f) return;
   try {
-    const o = JSON.parse(await f.text()); if (o.k !== 1 || !Array.isArray(o.c)) throw new Error();
+    const o = JSON.parse(await f.text());
+    if (o.kclBackup === 1){ restoreBackup(o); return; }
+    if (o.k !== 1 || !Array.isArray(o.c)) throw new Error();
     const list = unpackList(o); addReceived(list); go({name:'shop', id:list.id}); toast('写真入りのリストを開きました');
-  } catch(err){ toast('このファイルは開けませんでした。カードおつかいリストで作ったファイルを選んでください', 4500); }
+  } catch(err){ toast('このファイルは開けませんでした。カードおつかいリストで作ったファイル（リストまたはバックアップ）を選んでください', 4500); }
 };
+
+function restoreBackup(o){
+  let added = 0, updated = 0;
+  for (const l of o.lists || []){
+    if (!l || !l.id || !Array.isArray(l.items)) continue;
+    const i = lists.findIndex(x => x.id === l.id);
+    if (i < 0){ lists.push(l); added++; } else if ((l.updated || 0) > (lists[i].updated || 0)){ lists[i] = l; updated++; }
+  }
+  for (const r of o.recv || []){
+    if (!r || !r.list || !r.list.id) continue;
+    const i = recv.findIndex(x => x.list.id === r.list.id), stamp = x => Math.max(x.touched || 0, x.received || 0);
+    if (i < 0){ recv.push(r); added++; } else if (stamp(r) > stamp(recv[i])){ recv[i] = r; updated++; }
+  }
+  if (!myName && o.name){ myName = o.name; store('kcl-name', myName); }
+  saveLists(); saveRecv(); go({name:'home'});
+  toast(added || updated ? `読み込みました（追加 ${added}件・新しい内容に更新 ${updated}件）` : 'この端末のリストのほうが新しいか、同じ内容でした', 4000);
+}
 
 window.addEventListener('hashchange', handleHash);
 (async () => { if (!(await handleHash())) render(); })();
