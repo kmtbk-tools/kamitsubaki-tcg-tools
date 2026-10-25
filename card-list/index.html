@@ -1,0 +1,837 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>カードおつかいリスト</title>
+<meta name="description" content="友人にカードを買ってきてもらうときの買い物リスト。写真・名前・枚数・予算・メモを登録して、リンクで送れます。">
+<meta name="theme-color" content="#eef0f3" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#171a21" media="(prefers-color-scheme: dark)">
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="icon-192.png">
+<style>
+:root{
+  --bg:#eef0f3; --surface:#ffffff; --ink:#1d2433; --sub:#5b6476; --line:#d5d9e1;
+  --tag:#ffd84d; --tag-ink:#2a2200; --ok:#1f9d61; --ok-bg:#e3f5ec; --bad:#c9372f; --bad-bg:#fbe7e5;
+  --accent:#2f5bd3; --accent-ink:#ffffff; --shadow:0 1px 0 rgba(29,36,51,.06);
+  --font:"Hiragino Sans","Hiragino Kaku Gothic ProN","Noto Sans JP","Yu Gothic UI","Meiryo",system-ui,sans-serif;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#171a21; --surface:#222632; --ink:#eef0f5; --sub:#a3aabb; --line:#363b4a;
+    --tag:#f5cd3c; --tag-ink:#231c00; --ok:#45c48a; --ok-bg:#183a2b; --bad:#ff7d73; --bad-bg:#43211f;
+    --accent:#7d9cff; --accent-ink:#0e1530; --shadow:none;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#171a21; --surface:#222632; --ink:#eef0f5; --sub:#a3aabb; --line:#363b4a;
+  --tag:#f5cd3c; --tag-ink:#231c00; --ok:#45c48a; --ok-bg:#183a2b; --bad:#ff7d73; --bad-bg:#43211f;
+  --accent:#7d9cff; --accent-ink:#0e1530; --shadow:none;
+}
+*{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--font);font-size:16px;line-height:1.55;
+  padding-bottom:calc(96px + env(safe-area-inset-bottom))}
+button,input,textarea,select{font:inherit;color:inherit}
+button{cursor:pointer}
+:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+.wrap{max-width:960px;margin:0 auto;padding:0 16px}
+.hidden{display:none!important}
+.num{font-variant-numeric:tabular-nums}
+
+/* header */
+header.bar{position:sticky;top:0;z-index:20;background:var(--bg);border-bottom:1px solid var(--line);
+  padding-top:env(safe-area-inset-top)}
+header.bar .wrap{display:flex;align-items:center;gap:8px;min-height:56px}
+.back{border:0;background:none;font-size:15px;color:var(--accent);padding:8px 8px 8px 0;white-space:nowrap}
+.h-title{flex:1;min-width:0;font-weight:700;font-size:17px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.icon-btn{border:1px solid var(--line);background:var(--surface);border-radius:10px;padding:7px 12px;font-size:14px;white-space:nowrap}
+
+/* buttons */
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;border:1px solid var(--line);
+  background:var(--surface);border-radius:12px;padding:11px 16px;font-size:15px;font-weight:600;min-height:46px}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+.btn.danger{color:var(--bad)}
+.btn.line{background:#06c755;border-color:#06c755;color:#fff}
+.btn.block{width:100%}
+.btn:disabled{opacity:.45;cursor:default}
+
+/* home */
+.home h1{font-size:24px;margin:28px 0 4px;letter-spacing:.02em}
+.home .lead{color:var(--sub);margin:0 0 20px;font-size:14px}
+.home h2{font-size:15px;color:var(--sub);font-weight:600;margin:28px 0 8px}
+.list-row{display:flex;align-items:center;gap:12px;width:100%;text-align:left;background:var(--surface);
+  border:1px solid var(--line);border-radius:14px;padding:12px 14px;margin-bottom:8px;box-shadow:var(--shadow)}
+.list-row .thumbs{display:flex;flex:none}
+.list-row .thumbs span{width:30px;height:42px;border-radius:4px;background:var(--bg) center/cover;border:2px solid var(--surface);margin-left:-10px}
+.list-row .thumbs span:first-child{margin-left:0}
+.list-row .meta{flex:1;min-width:0}
+.list-row .t{font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.list-row .s{font-size:13px;color:var(--sub)}
+.badge{display:inline-block;font-size:12px;font-weight:700;border-radius:999px;padding:2px 8px;background:var(--ok-bg);color:var(--ok)}
+.empty{border:2px dashed var(--line);border-radius:14px;padding:22px 16px;text-align:center;color:var(--sub);font-size:14px}
+.home .actions{display:flex;gap:8px;flex-wrap:wrap}
+.foot-note{color:var(--sub);font-size:12px;margin:36px 0 8px;line-height:1.7}
+
+/* owner list */
+.fields{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:16px 0 4px}
+.fields label{font-size:12px;color:var(--sub);display:block}
+.fields input{width:100%;margin-top:2px}
+input[type=text],input[type=number],input[type=url],textarea{background:var(--surface);border:1px solid var(--line);border-radius:10px;
+  padding:10px 12px;font-size:16px;width:100%}
+textarea{resize:vertical;min-height:70px}
+.summary{display:flex;gap:16px;flex-wrap:wrap;align-items:baseline;font-size:14px;color:var(--sub);margin:14px 0 12px}
+.summary b{color:var(--ink);font-size:18px}
+.result-note{background:var(--ok-bg);border-radius:14px;padding:12px 14px;margin:8px 0 14px;font-size:14px}
+.result-note b{color:var(--ok)}
+.result-note p{margin:6px 0 0;white-space:pre-wrap}
+
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:12px}
+.card{position:relative;background:var(--surface);border:1px solid var(--line);border-radius:14px;overflow:hidden;
+  text-align:left;padding:0;display:flex;flex-direction:column;box-shadow:var(--shadow)}
+.card .pic{position:relative;aspect-ratio:63/88;background:var(--bg);display:flex;align-items:center;justify-content:center;
+  color:var(--sub);font-size:13px;overflow:hidden}
+.card .pic img{width:100%;height:100%;object-fit:contain}
+.card .no{position:absolute;left:8px;top:8px;min-width:26px;height:26px;border-radius:13px;background:var(--ink);color:var(--bg);
+  font-size:13px;font-weight:700;display:flex;align-items:center;justify-content:center;padding:0 7px}
+.card .body{padding:9px 10px 11px;display:flex;flex-direction:column;gap:5px;flex:1}
+.card .name{font-weight:700;font-size:14px;line-height:1.35;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.card .code{font-size:12px;color:var(--sub)}
+.card .memo{font-size:12px;color:var(--sub);display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+
+/* the price tag: the one loud element */
+.tag{align-self:flex-start;display:inline-flex;align-items:baseline;gap:8px;background:var(--tag);color:var(--tag-ink);
+  border-radius:4px 10px 10px 4px;padding:3px 10px 3px 14px;position:relative;font-weight:700;font-size:13px;line-height:1.5}
+.tag::before{content:"";position:absolute;left:5px;top:50%;width:5px;height:5px;margin-top:-2.5px;border-radius:50%;background:var(--surface)}
+.tag .q{font-size:16px}
+.must{font-size:11px;font-weight:700;color:var(--bad);border:1.5px solid var(--bad);border-radius:5px;padding:0 5px;align-self:flex-start}
+.maybe{font-size:11px;font-weight:700;color:var(--sub);border:1.5px solid var(--line);border-radius:5px;padding:0 5px;align-self:flex-start}
+.res{font-size:12px;font-weight:700;border-radius:8px;padding:4px 8px;margin-top:2px}
+.res.ok{background:var(--ok-bg);color:var(--ok)}
+.res.part{background:var(--bg);color:var(--ink);border:1.5px solid var(--ok)}
+.res.none{background:var(--bad-bg);color:var(--bad)}
+.add-card{border:2px dashed var(--line);border-radius:14px;background:none;color:var(--sub);font-weight:600;min-height:180px;font-size:15px}
+
+/* bottom bar */
+.bottom{position:fixed;left:0;right:0;bottom:0;z-index:20;background:var(--surface);border-top:1px solid var(--line);
+  padding:10px 0 calc(10px + env(safe-area-inset-bottom))}
+.bottom .wrap{display:flex;gap:10px}
+.bottom .btn{flex:1}
+
+/* shopping (friend) view */
+.shop-head{padding:16px 0 4px}
+.shop-head .from{color:var(--sub);font-size:14px}
+.shop-head h1{font-size:22px;margin:2px 0 10px;line-height:1.35}
+.progress{height:10px;border-radius:5px;background:var(--line);overflow:hidden}
+.progress i{display:block;height:100%;background:var(--ok);width:0;transition:width .3s}
+.shop-stats{display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;font-size:14px;color:var(--sub);margin:6px 0 10px}
+.shop-stats b{color:var(--ink)}
+.chips{display:flex;gap:6px;margin:6px 0 12px}
+.chip{border:1px solid var(--line);background:var(--surface);border-radius:999px;padding:6px 14px;font-size:14px}
+.chip[aria-pressed=true]{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+.preview-note{background:var(--tag);color:var(--tag-ink);border-radius:12px;padding:10px 12px;font-size:14px;margin:10px 0}
+
+.item{display:grid;grid-template-columns:116px 1fr;gap:12px;background:var(--surface);border:1px solid var(--line);
+  border-radius:16px;padding:12px;margin-bottom:12px;box-shadow:var(--shadow)}
+.item.done{border-color:var(--ok);background:linear-gradient(var(--ok-bg),var(--ok-bg)) padding-box}
+.item.miss{opacity:.72}
+.item .pic{position:relative;aspect-ratio:63/88;border-radius:8px;background:var(--bg);overflow:hidden;border:0;padding:0;
+  display:flex;align-items:center;justify-content:center;color:var(--sub);font-size:12px}
+.item .pic img{width:100%;height:100%;object-fit:contain}
+.item .no{position:absolute;left:5px;top:5px;min-width:24px;height:24px;border-radius:12px;background:var(--ink);color:var(--bg);
+  font-size:12px;font-weight:700;display:flex;align-items:center;justify-content:center;padding:0 6px}
+.item .stamp{position:absolute;inset:auto 0 0 0;background:var(--ok);color:#fff;font-weight:700;font-size:13px;text-align:center;padding:3px 0}
+.item .info{min-width:0;display:flex;flex-direction:column;gap:6px}
+.item .name{font-weight:700;font-size:17px;line-height:1.35;word-break:break-word}
+.item .code{font-size:13px;color:var(--sub);margin-top:-4px}
+.item .memo{font-size:14px;background:var(--bg);border-radius:8px;padding:6px 9px;white-space:pre-wrap;word-break:break-word}
+.item .tags{display:flex;gap:6px;flex-wrap:wrap;align-items:center}
+.item .tag{font-size:14px}
+.item .tag .q{font-size:19px}
+.controls{grid-column:1 / -1;display:grid;grid-template-columns:auto 1fr;gap:8px 12px;align-items:center;border-top:1px solid var(--line);padding-top:10px}
+.controls .lb{font-size:13px;color:var(--sub);white-space:nowrap}
+.stepper{display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+.stepper button{width:46px;height:46px;border-radius:12px;border:1px solid var(--line);background:var(--surface);font-size:22px;font-weight:700;line-height:1}
+.stepper .v{min-width:64px;text-align:center;font-size:20px;font-weight:700}
+.stepper .v small{font-size:14px;color:var(--sub);font-weight:600}
+.allbtn{border:1px solid var(--ok);color:var(--ok);background:var(--surface);border-radius:12px;padding:0 12px;height:46px;font-weight:700;font-size:14px;white-space:nowrap}
+.stepper .allbtn{width:auto;font-size:14px;line-height:1.2}
+.price-in{display:flex;align-items:center;gap:6px}
+.price-in input{max-width:130px;text-align:right}
+.price-in span{font-size:14px;color:var(--sub);white-space:nowrap}
+.over{color:var(--bad);font-size:13px;font-weight:700}
+.miss-btn{grid-column:1 / -1;justify-self:start;border:0;background:none;color:var(--sub);font-size:14px;padding:4px 0;text-decoration:underline;text-underline-offset:3px}
+.miss-btn[aria-pressed=true]{color:var(--bad);font-weight:700}
+
+/* modal */
+.modal{position:fixed;inset:0;z-index:50;background:rgba(10,12,20,.55);display:flex;align-items:flex-end;justify-content:center}
+.sheet{background:var(--bg);width:100%;max-width:560px;max-height:92vh;overflow:auto;border-radius:20px 20px 0 0;
+  padding:0 16px calc(18px + env(safe-area-inset-bottom))}
+@media (min-width:700px){.modal{align-items:center}.sheet{border-radius:20px;max-height:88vh}}
+.sheet-head{position:sticky;top:0;background:var(--bg);display:flex;align-items:center;gap:8px;padding:14px 0 10px;z-index:2}
+.sheet-head h2{flex:1;font-size:18px;margin:0}
+.close{border:0;background:var(--surface);border-radius:10px;padding:7px 12px;font-size:14px}
+.form-row{margin:0 0 14px}
+.form-row > label,.form-row > .lb{display:block;font-size:13px;color:var(--sub);margin-bottom:4px;font-weight:600}
+.photo-pick{display:flex;gap:12px;align-items:flex-start}
+.photo-pick .pv{width:110px;flex:none;aspect-ratio:63/88;border-radius:10px;background:var(--surface);border:2px dashed var(--line);
+  display:flex;align-items:center;justify-content:center;color:var(--sub);font-size:13px;overflow:hidden;text-align:center;padding:0}
+.photo-pick .pv img{width:100%;height:100%;object-fit:contain}
+.photo-pick .ops{display:flex;flex-direction:column;gap:8px;flex:1}
+.row2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.seg{display:flex;border:1px solid var(--line);border-radius:12px;overflow:hidden;background:var(--surface)}
+.seg button{flex:1;border:0;background:none;padding:10px 6px;font-size:14px;font-weight:600}
+.seg button[aria-pressed=true]{background:var(--ink);color:var(--bg)}
+.hint{font-size:12px;color:var(--sub);margin-top:4px}
+details.res-edit{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:10px 12px;margin-bottom:14px}
+details.res-edit summary{font-weight:600;font-size:14px;cursor:pointer}
+.sheet-actions{display:flex;gap:10px;margin-top:6px}
+.sheet-actions .btn{flex:1}
+.step{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:14px;margin-bottom:12px}
+.step h3{margin:0 0 4px;font-size:16px}
+.step p{margin:0 0 10px;font-size:13px;color:var(--sub)}
+.step .btns{display:flex;gap:8px;flex-wrap:wrap}
+.step .btns .btn{flex:1 1 140px}
+.len{font-size:12px;color:var(--sub);margin-top:8px}
+.len.warn{color:var(--bad);font-weight:600}
+
+.lightbox{position:fixed;inset:0;z-index:60;background:rgba(0,0,0,.85);display:flex;align-items:center;justify-content:center;padding:20px}
+.lightbox img{max-width:100%;max-height:100%;object-fit:contain;border-radius:10px}
+.toast{position:fixed;left:50%;bottom:calc(92px + env(safe-area-inset-bottom));transform:translateX(-50%);z-index:70;background:var(--ink);color:var(--bg);
+  padding:10px 16px;border-radius:12px;font-size:14px;max-width:calc(100% - 32px);box-shadow:0 4px 18px rgba(0,0,0,.25)}
+@media (prefers-reduced-motion: reduce){*{transition:none!important}}
+@media (max-width:420px){
+  .item{grid-template-columns:96px 1fr;gap:10px;padding:10px}
+  .grid{grid-template-columns:repeat(2,1fr);gap:10px}
+  .fields{grid-template-columns:1fr}
+}
+</style>
+</head>
+<body>
+<header class="bar">
+  <div class="wrap">
+    <button class="back hidden" id="backBtn" type="button">‹ 一覧</button>
+    <div class="h-title" id="hTitle">カードおつかいリスト</div>
+    <button class="icon-btn hidden" id="menuBtn" type="button">その他</button>
+  </div>
+</header>
+<main class="wrap" id="main"></main>
+<div class="bottom hidden" id="bottom"><div class="wrap" id="bottomInner"></div></div>
+<input type="file" id="fileImg" accept="image/*" class="hidden">
+<input type="file" id="fileList" accept=".json,application/json,text/plain" class="hidden">
+
+<script>
+'use strict';
+/* ---------- helpers ---------- */
+const $ = (s, el = document) => el.querySelector(s);
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const yen = n => '¥' + Math.round(n).toLocaleString('ja-JP');
+const rid = () => Math.random().toString(36).slice(2, 7);
+const now = () => Date.now();
+const fmtDate = t => { const d = new Date(t); return `${d.getMonth()+1}/${d.getDate()} ${d.getHours()}:${String(d.getMinutes()).padStart(2,'0')}`; };
+const LINE_LIMIT = 4900; // LINE のメッセージは 5000 文字まで
+
+function store(k, v){ try { localStorage.setItem(k, JSON.stringify(v)); return true; } catch(e){ toast('保存できませんでした。写真が多すぎる可能性があります（ブラウザの保存容量の上限）'); return false; } }
+function load(k, d){ try { const v = localStorage.getItem(k); return v ? JSON.parse(v) : d; } catch(e){ return d; } }
+
+let toastT;
+function toast(msg, ms = 2600){
+  let t = $('.toast'); if (!t){ t = document.createElement('div'); t.className = 'toast'; t.setAttribute('role','status'); document.body.appendChild(t); }
+  t.textContent = msg; t.classList.remove('hidden'); clearTimeout(toastT); toastT = setTimeout(() => t.classList.add('hidden'), ms);
+}
+
+/* base64url + 圧縮 */
+function b64u(bytes){ let s = ''; for (let i = 0; i < bytes.length; i += 0x8000) s += String.fromCharCode.apply(null, bytes.subarray(i, i + 0x8000)); return btoa(s).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,''); }
+function unb64u(str){ str = str.replace(/-/g,'+').replace(/_/g,'/'); while (str.length % 4) str += '='; const bin = atob(str); const out = new Uint8Array(bin.length); for (let i = 0; i < bin.length; i++) out[i] = bin.charCodeAt(i); return out; }
+async function pack(obj){
+  const bytes = new TextEncoder().encode(JSON.stringify(obj));
+  if ('CompressionStream' in window){
+    try { const buf = await new Response(new Blob([bytes]).stream().pipeThrough(new CompressionStream('deflate-raw'))).arrayBuffer(); return 'z' + b64u(new Uint8Array(buf)); } catch(e){}
+  }
+  return 'p' + b64u(bytes);
+}
+async function unpack(str){
+  const kind = str[0], bytes = unb64u(str.slice(1));
+  let out = bytes;
+  if (kind === 'z'){
+    if (!('DecompressionStream' in window)) throw new Error('old');
+    out = new Uint8Array(await new Response(new Blob([bytes]).stream().pipeThrough(new DecompressionStream('deflate-raw'))).arrayBuffer());
+  }
+  return JSON.parse(new TextDecoder().decode(out));
+}
+
+/* 画像 */
+function loadImg(src, cors){ return new Promise((ok, ng) => { const i = new Image(); if (cors) i.crossOrigin = 'anonymous'; i.onload = () => ok(i); i.onerror = ng; i.src = src; }); }
+function drawTo(img, max, q){
+  const w = img.naturalWidth, h = img.naturalHeight, s = Math.min(1, max / Math.max(w, h));
+  const c = document.createElement('canvas'); c.width = Math.max(1, Math.round(w * s)); c.height = Math.max(1, Math.round(h * s));
+  const g = c.getContext('2d'); g.fillStyle = '#fff'; g.fillRect(0, 0, c.width, c.height); g.drawImage(img, 0, 0, c.width, c.height);
+  let d = c.toDataURL('image/webp', q); if (!d.startsWith('data:image/webp')) d = c.toDataURL('image/jpeg', q);
+  return d;
+}
+async function fileToImg(file){ const url = URL.createObjectURL(file); try { return drawTo(await loadImg(url), 520, 0.72); } finally { URL.revokeObjectURL(url); } }
+const imgSrc = it => it.img || it.url || '';
+
+/* ---------- data ---------- */
+// 自分のリスト: {id,title,friend,owner,updated,items:[{id,name,code,qty,budget,must,memo,img,url,res:{b,a,x}}],rt,rf,rn}
+// 頼まれたリスト: {list:{...}, got:{itemId:{b,a,x}}, note, received}
+let lists = load('kcl-lists', []);
+let recv = load('kcl-recv', []);
+let myName = load('kcl-name', '');
+const saveLists = () => store('kcl-lists', lists);
+const saveRecv = () => store('kcl-recv', recv);
+
+let view = {name:'home'};
+
+function listTotals(items, resOf){
+  let kinds = items.length, cards = 0, budget = 0, budgetMissing = 0, done = 0, spent = 0, bought = 0;
+  for (const it of items){
+    cards += it.qty;
+    if (it.budget) budget += it.budget * it.qty; else budgetMissing++;
+    const r = resOf(it);
+    if (r){
+      bought += r.b || 0;
+      if (r.b && r.a) spent += r.a * r.b;
+      if ((r.b || 0) >= it.qty || r.x) done++;
+    }
+  }
+  return {kinds, cards, budget, budgetMissing, done, spent, bought};
+}
+
+/* ---------- 画面: 一覧 ---------- */
+function setHeader(title, back, menu){
+  $('#hTitle').textContent = title;
+  $('#backBtn').classList.toggle('hidden', !back);
+  $('#menuBtn').classList.toggle('hidden', !menu);
+  $('#menuBtn').onclick = menu || null;
+}
+function setBottom(html){
+  $('#bottom').classList.toggle('hidden', !html);
+  $('#bottomInner').innerHTML = html || '';
+}
+function go(v){ view = v; render(); window.scrollTo(0, 0); }
+$('#backBtn').onclick = () => { history.replaceState(null, '', location.pathname); go({name:'home'}); };
+
+function render(){
+  if (view.name === 'home') renderHome();
+  else if (view.name === 'own') renderOwn();
+  else if (view.name === 'shop') renderShop();
+}
+
+function thumbsHtml(items){
+  return '<div class="thumbs" aria-hidden="true">' + items.filter(imgSrc).slice(0, 3).map(it => `<span style="background-image:url('${esc(imgSrc(it))}')"></span>`).join('') + '</div>';
+}
+
+function renderHome(){
+  setHeader('カードおつかいリスト', false, null);
+  setBottom('');
+  const own = lists.slice().sort((a, b) => b.updated - a.updated);
+  const rv = recv.slice().sort((a, b) => b.received - a.received);
+  $('#main').innerHTML = `
+  <section class="home">
+    <h1>カードおつかいリスト</h1>
+    <p class="lead">欲しいカードの写真・枚数・予算をまとめて、買ってきてくれる友人にリンクで送れます。</p>
+
+    <h2>頼むリスト</h2>
+    ${own.length ? own.map(l => {
+      const t = listTotals(l.items, it => it.res);
+      return `<button class="list-row" type="button" data-own="${l.id}">${thumbsHtml(l.items)}
+        <div class="meta"><div class="t">${esc(l.title || '無題のリスト')}</div>
+        <div class="s num">${t.kinds}種類 ${t.cards}枚${l.friend ? `／${esc(l.friend)}さんに依頼` : ''}</div></div>
+        ${l.rt ? `<span class="badge">結果あり</span>` : ''}</button>`;
+    }).join('') : `<div class="empty">まだリストがありません。<br>「新しいリストを作る」から始めましょう。</div>`}
+    <div class="actions" style="margin-top:10px"><button class="btn primary" type="button" id="newList">＋ 新しいリストを作る</button></div>
+
+    <h2>頼まれたリスト（買いに行く）</h2>
+    ${rv.length ? rv.map(r => {
+      const t = listTotals(r.list.items, it => r.got[it.id]);
+      return `<button class="list-row" type="button" data-recv="${r.list.id}">${thumbsHtml(r.list.items)}
+        <div class="meta"><div class="t">${esc(r.list.title || '買い物リスト')}</div>
+        <div class="s num">${r.list.owner ? esc(r.list.owner) + 'さんから／' : ''}${t.done}/${t.kinds}種類 済み</div></div></button>`;
+    }).join('') : `<div class="empty">友人から届いたリンクを開くと、ここに入ります。</div>`}
+    <div class="actions" style="margin-top:10px"><button class="btn" type="button" id="openFile">写真入りファイルを開く</button></div>
+
+    <p class="foot-note">データはこの端末のブラウザにだけ保存されます（サーバーには送りません）。ブラウザのデータを消すとリストも消えます。<br>
+    <a href="../" style="color:var(--sub)">神椿TCG tokenカウンター</a> と同じ作者の非公式ファンツールです。</p>
+  </section>`;
+  $('#newList').onclick = () => {
+    const l = {id: rid() + rid(), title: '', friend: '', owner: myName, updated: now(), items: []};
+    lists.push(l); saveLists(); go({name:'own', id:l.id});
+  };
+  $('#openFile').onclick = () => $('#fileList').click();
+  document.querySelectorAll('[data-own]').forEach(b => b.onclick = () => go({name:'own', id:b.dataset.own}));
+  document.querySelectorAll('[data-recv]').forEach(b => b.onclick = () => go({name:'shop', id:b.dataset.recv}));
+}
+
+/* ---------- 画面: 自分のリスト（編集） ---------- */
+const curOwn = () => lists.find(l => l.id === view.id);
+
+function resBadge(it, r){
+  if (!r) return '';
+  if (r.x && !r.b) return `<div class="res none">見つからなかった</div>`;
+  const price = r.a ? `（${yen(r.a)}/枚）` : '';
+  if ((r.b || 0) >= it.qty) return `<div class="res ok num">買えた ${r.b}枚${price}</div>`;
+  if (r.b) return `<div class="res part num">${r.b}/${it.qty}枚 買えた${price}</div>`;
+  return '';
+}
+
+function tagHtml(it){
+  return `<span class="tag num"><span class="q">×${it.qty}</span>${it.budget ? `<span>${yen(it.budget)}まで</span>` : ''}</span>`;
+}
+
+function renderOwn(){
+  const l = curOwn(); if (!l) return go({name:'home'});
+  setHeader(l.title || '無題のリスト', true, () => ownMenu(l));
+  const t = listTotals(l.items, it => it.res);
+  $('#main').innerHTML = `
+    <div class="fields">
+      <div><label for="fTitle">リストの名前</label><input id="fTitle" type="text" placeholder="例：11月のショップ巡り" value="${esc(l.title)}"></div>
+      <div class="row2">
+        <div><label for="fFriend">買ってきてくれる人</label><input id="fFriend" type="text" placeholder="例：たろう" value="${esc(l.friend)}"></div>
+        <div><label for="fOwner">自分の名前</label><input id="fOwner" type="text" placeholder="例：はなこ" value="${esc(l.owner)}"></div>
+      </div>
+    </div>
+    <div class="summary num"><span><b>${t.kinds}</b> 種類</span><span><b>${t.cards}</b> 枚</span>
+      <span>予算合計 <b>${yen(t.budget)}</b>${t.budgetMissing && t.kinds ? `（予算なし${t.budgetMissing}種類を除く）` : ''}</span></div>
+    ${l.rt ? `<div class="result-note"><b>${esc(l.rf || '友人')}さんから結果が届きました</b>（${fmtDate(l.rt)}）<br>
+      <span class="num">${t.done}/${t.kinds}種類 済み・${t.bought}枚 購入・合計 ${yen(t.spent)}</span>${l.rn ? `<p>「${esc(l.rn)}」</p>` : ''}</div>` : ''}
+    <div class="grid" id="grid">
+      ${l.items.map((it, i) => `<button class="card" type="button" data-item="${it.id}">
+        <div class="pic">${imgSrc(it) ? `<img src="${esc(imgSrc(it))}" alt="" loading="lazy">` : '写真なし'}<span class="no num">${i + 1}</span></div>
+        <div class="body"><div class="name">${esc(it.name)}</div>${it.code ? `<div class="code">${esc(it.code)}</div>` : ''}
+          ${tagHtml(it)}${it.must ? '<span class="must">必ず</span>' : '<span class="maybe">あれば</span>'}
+          ${it.memo ? `<div class="memo">${esc(it.memo)}</div>` : ''}${resBadge(it, it.res)}</div>
+      </button>`).join('')}
+      <button class="add-card" type="button" id="addCard">＋ カードを追加</button>
+    </div>`;
+  const bindField = (id, key, after) => { $(id).oninput = e => { l[key] = e.target.value; l.updated = now(); saveLists(); after && after(); }; };
+  bindField('#fTitle', 'title', () => $('#hTitle').textContent = l.title || '無題のリスト');
+  bindField('#fFriend', 'friend');
+  bindField('#fOwner', 'owner', () => { myName = l.owner; store('kcl-name', myName); });
+  $('#addCard').onclick = () => editItem(l, null);
+  document.querySelectorAll('[data-item]').forEach(b => b.onclick = () => editItem(l, l.items.find(x => x.id === b.dataset.item)));
+  setBottom(`<button class="btn" type="button" id="bAdd">＋ カードを追加</button><button class="btn primary" type="button" id="bShare" ${l.items.length ? '' : 'disabled'}>友人に送る</button>`);
+  $('#bAdd').onclick = () => editItem(l, null);
+  $('#bShare').onclick = () => shareSheet(l);
+}
+
+function ownMenu(l){
+  const m = openSheet('その他', `
+    <div class="step"><h3>友人に送る</h3><p>リスト画像とリンクを送ります。</p><button class="btn block primary" type="button" id="mShare">送る準備をする</button></div>
+    <div class="step"><h3>結果をクリア</h3><p>届いた「買えた枚数・値段」を消して、もう一度頼めるようにします。</p><button class="btn block" type="button" id="mClear">結果をクリア</button></div>
+    <div class="step"><h3>リストを複製</h3><p>同じカードで別のリストを作ります（結果は引き継ぎません）。</p><button class="btn block" type="button" id="mDup">複製する</button></div>
+    <div class="step"><h3>リストを削除</h3><p>この端末から消します。元に戻せません。</p><button class="btn block danger" type="button" id="mDel">削除する</button></div>`);
+  $('#mShare', m).onclick = () => { closeSheet(m); shareSheet(l); };
+  $('#mClear', m).onclick = () => { if (!confirm('届いた結果を消しますか？')) return; l.items.forEach(it => delete it.res); delete l.rt; delete l.rf; delete l.rn; l.updated = now(); saveLists(); closeSheet(m); render(); toast('結果をクリアしました'); };
+  $('#mDup', m).onclick = () => {
+    const c = JSON.parse(JSON.stringify(l)); c.id = rid() + rid(); c.title = (l.title || '無題のリスト') + '（コピー）'; c.updated = now();
+    c.items.forEach(it => { delete it.res; it.id = rid(); }); delete c.rt; delete c.rf; delete c.rn;
+    lists.push(c); if (saveLists()){ closeSheet(m); go({name:'own', id:c.id}); toast('複製しました'); }
+  };
+  $('#mDel', m).onclick = () => { if (!confirm(`「${l.title || '無題のリスト'}」を削除しますか？`)) return; lists = lists.filter(x => x !== l); saveLists(); closeSheet(m); go({name:'home'}); toast('削除しました'); };
+}
+
+/* ---------- シート（モーダル） ---------- */
+function openSheet(title, html){
+  const m = document.createElement('div'); m.className = 'modal';
+  m.innerHTML = `<div class="sheet" role="dialog" aria-modal="true" aria-label="${esc(title)}"><div class="sheet-head"><h2>${esc(title)}</h2><button class="close" type="button">閉じる</button></div>${html}</div>`;
+  document.body.appendChild(m); document.body.style.overflow = 'hidden';
+  $('.close', m).onclick = () => closeSheet(m);
+  m.addEventListener('click', e => { if (e.target === m) closeSheet(m); });
+  return m;
+}
+function closeSheet(m){ m.remove(); if (!document.querySelector('.modal')) document.body.style.overflow = ''; }
+document.addEventListener('keydown', e => { if (e.key === 'Escape'){ const ms = document.querySelectorAll('.modal, .lightbox'); if (ms.length){ const m = ms[ms.length - 1]; m.classList.contains('lightbox') ? m.remove() : closeSheet(m); } } });
+
+function editItem(l, it){
+  const isNew = !it;
+  const d = it ? JSON.parse(JSON.stringify(it)) : {id: rid(), name: '', code: '', qty: 1, budget: null, must: true, memo: '', img: '', url: ''};
+  const r = d.res || {};
+  const m = openSheet(isNew ? 'カードを追加' : 'カードを編集', `
+    <div class="form-row"><span class="lb">写真</span>
+      <div class="photo-pick">
+        <button class="pv" type="button" id="ePv"></button>
+        <div class="ops">
+          <button class="btn" type="button" id="ePick">写真を撮る・選ぶ</button>
+          <button class="btn hidden" type="button" id="eRm">写真を外す</button>
+          <details><summary class="hint" style="cursor:pointer">画像のURLで指定する</summary>
+            <input id="eUrl" type="url" placeholder="https://…" value="${esc(d.url)}" style="margin-top:6px">
+            <div class="hint">公式カードリストなどの画像アドレス。リンクに入れても短いままで送れます。</div></details>
+        </div>
+      </div></div>
+    <div class="form-row"><label for="eName">カード名</label><input id="eName" type="text" placeholder="例：【証明】祭壇" value="${esc(d.name)}"></div>
+    <div class="form-row"><label for="eCode">型番・レアリティ（見分け用・任意）</label><input id="eCode" type="text" placeholder="例：BP02-012 SR／パラレル" value="${esc(d.code)}"></div>
+    <div class="row2 form-row">
+      <div><span class="lb">欲しい枚数</span>
+        <div class="stepper"><button type="button" id="eQm" aria-label="1枚減らす">−</button><span class="v num" id="eQ"></span><button type="button" id="eQp" aria-label="1枚増やす">＋</button></div></div>
+      <div><label for="eBudget">予算（1枚あたり）</label>
+        <div class="price-in"><input id="eBudget" type="number" inputmode="numeric" min="0" step="10" placeholder="なし" value="${d.budget ?? ''}"><span>円まで</span></div></div>
+    </div>
+    <div class="form-row"><span class="lb">優先度</span>
+      <div class="seg" role="group"><button type="button" id="eMust">必ずほしい</button><button type="button" id="eMaybe">あれば</button></div></div>
+    <div class="form-row"><label for="eMemo">メモ</label><textarea id="eMemo" placeholder="例：イラスト違いでもOK／状態きれいなもの／シングル買いならこの店">${esc(d.memo)}</textarea></div>
+    ${isNew ? '' : `<details class="res-edit" ${it.res ? 'open' : ''}><summary>買ってきた結果（口頭で聞いたときなど）</summary>
+      <div class="row2" style="margin-top:10px">
+        <div><label class="lb" for="eRb" style="display:block;font-size:13px;color:var(--sub)">買えた枚数</label><input id="eRb" type="number" inputmode="numeric" min="0" value="${r.b ?? ''}" placeholder="0"></div>
+        <div><label class="lb" for="eRa" style="display:block;font-size:13px;color:var(--sub)">実際の値段（1枚）</label><input id="eRa" type="number" inputmode="numeric" min="0" value="${r.a ?? ''}" placeholder="円"></div>
+      </div>
+      <label style="display:flex;gap:8px;align-items:center;margin-top:10px;font-size:14px"><input type="checkbox" id="eRx" ${r.x ? 'checked' : ''}> 見つからなかった</label>
+    </details>`}
+    <div class="sheet-actions">${isNew ? '' : '<button class="btn danger" type="button" id="eDel">削除</button>'}<button class="btn primary" type="button" id="eSave">${isNew ? '追加する' : '保存する'}</button></div>`);
+  const pv = () => {
+    const src = d.img || d.url;
+    $('#ePv', m).innerHTML = src ? `<img src="${esc(src)}" alt="選んだ写真">` : 'タップで<br>写真を追加';
+    $('#eRm', m).classList.toggle('hidden', !d.img);
+  };
+  const seg = () => { $('#eMust', m).setAttribute('aria-pressed', d.must); $('#eMaybe', m).setAttribute('aria-pressed', !d.must); };
+  const qty = () => $('#eQ', m).innerHTML = `${d.qty}<small>枚</small>`;
+  pv(); seg(); qty();
+  const pick = () => { const f = $('#fileImg'); f.value = ''; f.onchange = async () => { const file = f.files[0]; if (!file) return; try { d.img = await fileToImg(file); pv(); } catch(e){ toast('この画像は読み込めませんでした'); } }; f.click(); };
+  $('#ePick', m).onclick = pick; $('#ePv', m).onclick = pick;
+  $('#eRm', m).onclick = () => { d.img = ''; pv(); };
+  $('#eUrl', m).oninput = e => { d.url = e.target.value.trim(); pv(); };
+  $('#eQm', m).onclick = () => { d.qty = Math.max(1, d.qty - 1); qty(); };
+  $('#eQp', m).onclick = () => { d.qty = Math.min(99, d.qty + 1); qty(); };
+  $('#eMust', m).onclick = () => { d.must = true; seg(); };
+  $('#eMaybe', m).onclick = () => { d.must = false; seg(); };
+  if (isNew) setTimeout(() => $('#eName', m).focus(), 50);
+  $('#eSave', m).onclick = () => {
+    d.name = $('#eName', m).value.trim(); d.code = $('#eCode', m).value.trim(); d.memo = $('#eMemo', m).value.trim();
+    const b = parseInt($('#eBudget', m).value, 10); d.budget = b > 0 ? b : null;
+    if (!d.name){ toast('カード名を入れてください'); $('#eName', m).focus(); return; }
+    if (!isNew){
+      const rb = parseInt($('#eRb', m).value, 10), ra = parseInt($('#eRa', m).value, 10), rx = $('#eRx', m).checked;
+      if (rb > 0 || ra > 0 || rx) d.res = {b: rb > 0 ? rb : 0, a: ra > 0 ? ra : 0, x: rx}; else delete d.res;
+    }
+    if (isNew) l.items.push(d); else l.items[l.items.indexOf(it)] = d;
+    l.updated = now();
+    if (saveLists()){ closeSheet(m); render(); toast(isNew ? '追加しました' : '保存しました'); }
+    else if (isNew) l.items.pop();
+  };
+  if (!isNew) $('#eDel', m).onclick = () => { if (!confirm(`「${it.name}」を削除しますか？`)) return; l.items = l.items.filter(x => x !== it); l.updated = now(); saveLists(); closeSheet(m); render(); toast('削除しました'); };
+}
+
+/* ---------- 送る ---------- */
+async function thumbOf(it){
+  if (!it.img) return '';
+  try { return drawTo(await loadImg(it.img), 84, 0.5); } catch(e){ return ''; }
+}
+function packList(l, withThumbs){
+  return {k:1, i:l.id, t:l.title, f:l.friend, o:l.owner, v:l.updated,
+    c:l.items.map(it => { const o = {i:it.id, n:it.name, q:it.qty}; if (it.code) o.c = it.code; if (it.budget) o.p = it.budget; if (!it.must) o.r = 0; if (it.memo) o.m = it.memo; if (it.url) o.u = it.url; if (withThumbs && it._t) o.g = it._t; return o; })};
+}
+function unpackList(o){
+  return {id:o.i, title:o.t || '', friend:o.f || '', owner:o.o || '', updated:o.v || now(),
+    items:(o.c || []).map(c => ({id:c.i, name:c.n, qty:c.q || 1, code:c.c || '', budget:c.p || null, must:c.r !== 0, memo:c.m || '', url:c.u || '', img:c.img || c.g || ''}))};
+}
+const baseUrl = () => location.origin + location.pathname;
+
+async function buildShareText(l){
+  for (const it of l.items) it._t = await thumbOf(it);
+  const head = `${l.friend ? l.friend + 'さん、' : ''}カードの買い物リストです（${l.items.length}種類）。開くと買えた枚数や値段をチェックできます。\n`;
+  let url = baseUrl() + '#l=' + await pack(packList(l, true));
+  let photos = l.items.some(it => it.img);
+  if (photos && (head + url).length > LINE_LIMIT){ url = baseUrl() + '#l=' + await pack(packList(l, false)); photos = false; }
+  l.items.forEach(it => delete it._t);
+  return {text: head + url, url, photosInLink: photos, hasPhotos: l.items.some(it => it.img)};
+}
+
+async function shareSheet(l){
+  if (!l.items.length) return toast('先にカードを追加してください');
+  const m = openSheet('友人に送る', `
+    <div class="step"><h3>1. リスト画像を送る</h3><p>写真・番号・枚数・予算を1枚の画像にします。LINEの写真として送ると、お店で拡大して見られます。</p>
+      <div class="btns"><button class="btn primary" type="button" id="sImg">画像を作って送る</button></div></div>
+    <div class="step"><h3>2. チェック用リンクを送る</h3><p>友人がリンクを開くと、買えた枚数と実際の値段を記録して、結果を送り返せます。</p>
+      <div class="btns"><button class="btn line" type="button" id="sLine" disabled>LINEで送る</button><button class="btn" type="button" id="sShare" disabled>ほかのアプリで送る</button><button class="btn" type="button" id="sCopy" disabled>コピー</button></div>
+      <div class="len" id="sLen">リンクを作っています…</div></div>
+    <details class="step"><summary style="font-weight:600;cursor:pointer">写真もアプリの中で見せたいとき</summary>
+      <p style="margin-top:8px">写真入りのファイルを送ります。友人はファイルを保存し、リンク先の一覧で「写真入りファイルを開く」から読み込みます。</p>
+      <div class="btns"><button class="btn" type="button" id="sFile">ファイルを送る</button></div></details>`);
+  let share;
+  try { share = await buildShareText(l); } catch(e){ $('#sLen', m).textContent = 'リンクを作れませんでした'; return; }
+  const lenEl = $('#sLen', m);
+  lenEl.textContent = share.hasPhotos
+    ? (share.photosInLink ? `写真の縮小版もリンクに入れました（${share.text.length.toLocaleString()}文字）。` : `写真はリンクに入りきらないため、名前と番号だけです（${share.text.length.toLocaleString()}文字）。写真は1のリスト画像で送ってください。`)
+    : `${share.text.length.toLocaleString()}文字`;
+  if (share.text.length > LINE_LIMIT){ lenEl.classList.add('warn'); lenEl.textContent += ' LINEの上限（5000文字）を超えています。メモを短くするか、リストを分けてください。'; }
+  ['#sLine', '#sShare', '#sCopy'].forEach(s => $(s, m).disabled = false);
+  if (!navigator.share) $('#sShare', m).classList.add('hidden');
+  $('#sLine', m).onclick = () => { location.href = 'https://line.me/R/share?text=' + encodeURIComponent(share.text); };
+  $('#sShare', m).onclick = () => navigator.share({text: share.text}).catch(() => {});
+  $('#sCopy', m).onclick = () => copyText(share.text);
+  $('#sImg', m).onclick = async e => {
+    e.target.disabled = true; e.target.textContent = '作成中…';
+    try { const blobs = await makeListImages(l); await shareFiles(blobs.map((b, i) => new File([b], `cardlist${blobs.length > 1 ? '-' + (i + 1) : ''}.png`, {type:'image/png'})), 'リスト画像'); }
+    catch(err){ toast('画像を作れませんでした'); }
+    e.target.disabled = false; e.target.textContent = '画像を作って送る';
+  };
+  $('#sFile', m).onclick = async () => {
+    const data = packList(l, false); data.c.forEach((c, i) => { if (l.items[i].img) c.img = l.items[i].img; }); data.kcl = 1;
+    const name = `cardlist-${(l.title || 'list').replace(/[\\/:*?"<>|\s]+/g, '_').slice(0, 30)}.json`;
+    await shareFiles([new File([JSON.stringify(data)], name, {type:'application/json'})], '写真入りファイル');
+  };
+}
+async function copyText(t){
+  try { await navigator.clipboard.writeText(t); toast('コピーしました'); }
+  catch(e){ const ta = document.createElement('textarea'); ta.value = t; document.body.appendChild(ta); ta.select(); try { document.execCommand('copy'); toast('コピーしました'); } catch(_){ toast('コピーできませんでした'); } ta.remove(); }
+}
+async function shareFiles(files, label){
+  if (navigator.canShare && navigator.canShare({files})){
+    try { await navigator.share({files}); return; } catch(e){ if (e.name === 'AbortError') return; }
+  }
+  for (const f of files){ const a = document.createElement('a'); a.href = URL.createObjectURL(f); a.download = f.name; document.body.appendChild(a); a.click(); setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 1000); }
+  toast(`${label}を保存しました`);
+}
+
+/* リスト画像（キャンバス） */
+async function makeListImages(l){
+  const W = 1080, PAD = 40, COLS = 3, GAP = 24, CW = (W - PAD * 2 - GAP * (COLS - 1)) / COLS, IH = Math.round(CW * 88 / 63);
+  const FONT = '"Hiragino Sans","Hiragino Kaku Gothic ProN","Noto Sans JP","Yu Gothic",sans-serif';
+  const imgs = await Promise.all(l.items.map(async it => { const s = imgSrc(it); if (!s) return null; try { return await loadImg(s, !s.startsWith('data:')); } catch(e){ return null; } }));
+  const ROWS_PER = 6, perImg = COLS * ROWS_PER, chunks = [];
+  for (let i = 0; i < l.items.length; i += perImg) chunks.push(i);
+  const t = listTotals(l.items, () => null);
+  const wrap = (g, text, maxW, maxLines) => {
+    const lines = []; let cur = '';
+    for (const ch of String(text)){ if (ch === '\n'){ lines.push(cur); cur = ''; continue; } if (g.measureText(cur + ch).width > maxW){ lines.push(cur); cur = ch; } else cur += ch; }
+    if (cur) lines.push(cur);
+    if (lines.length > maxLines){ lines.length = maxLines; let s = lines[maxLines - 1]; while (s && g.measureText(s + '…').width > maxW) s = s.slice(0, -1); lines[maxLines - 1] = s + '…'; }
+    return lines;
+  };
+  const blobs = [];
+  for (const [ci, start] of chunks.entries()){
+    const part = l.items.slice(start, start + perImg), rows = Math.ceil(part.length / COLS);
+    const HEAD = ci === 0 ? 190 : 90, CELL = IH + 200;
+    const H = HEAD + rows * (CELL + GAP) + PAD;
+    const c = document.createElement('canvas'); c.width = W; c.height = H; const g = c.getContext('2d');
+    g.fillStyle = '#eef0f3'; g.fillRect(0, 0, W, H);
+    g.fillStyle = '#1d2433'; g.textBaseline = 'top';
+    if (ci === 0){
+      g.font = `700 46px ${FONT}`; g.fillText(wrap(g, l.title || 'カードの買い物リスト', W - PAD * 2, 1)[0], PAD, 40);
+      g.font = `500 28px ${FONT}`; g.fillStyle = '#5b6476';
+      const who = [l.owner && `${l.owner}より`, l.friend && `${l.friend}さんへ`].filter(Boolean).join('　');
+      g.fillText(`${who ? who + '　' : ''}${t.kinds}種類 ${t.cards}枚${t.budget ? `　予算合計 ${yen(t.budget)}` : ''}`, PAD, 106);
+      if (chunks.length > 1){ g.fillText(`（${ci + 1}/${chunks.length}）`, PAD, 146); }
+    } else {
+      g.font = `700 32px ${FONT}`; g.fillText(`${l.title || 'カードの買い物リスト'}（${ci + 1}/${chunks.length}）`, PAD, 36);
+    }
+    part.forEach((it, k) => {
+      const idx = start + k, x = PAD + (k % COLS) * (CW + GAP), y = HEAD + Math.floor(k / COLS) * (CELL + GAP);
+      g.fillStyle = '#ffffff'; roundRect(g, x, y, CW, CELL, 18); g.fill();
+      g.save(); roundRect(g, x, y, CW, IH, 18); g.clip(); g.fillStyle = '#dfe3ea'; g.fillRect(x, y, CW, IH);
+      const im = imgs[idx];
+      if (im){ const s = Math.min(CW / im.naturalWidth, IH / im.naturalHeight), w = im.naturalWidth * s, h = im.naturalHeight * s; try { g.drawImage(im, x + (CW - w) / 2, y + (IH - h) / 2, w, h); } catch(e){} }
+      else { g.fillStyle = '#8a92a3'; g.font = `500 26px ${FONT}`; g.textAlign = 'center'; g.fillText('写真なし', x + CW / 2, y + IH / 2 - 14); g.textAlign = 'left'; }
+      g.restore();
+      // 番号
+      g.fillStyle = '#1d2433'; g.beginPath(); g.arc(x + 34, y + 34, 24, 0, Math.PI * 2); g.fill();
+      g.fillStyle = '#ffffff'; g.font = `700 26px ${FONT}`; g.textAlign = 'center'; g.fillText(String(idx + 1), x + 34, y + 20); g.textAlign = 'left';
+      let ty = y + IH + 14;
+      g.fillStyle = '#1d2433'; g.font = `700 27px ${FONT}`;
+      for (const line of wrap(g, it.name, CW - 28, 2)){ g.fillText(line, x + 14, ty); ty += 35; }
+      if (it.code){ g.fillStyle = '#5b6476'; g.font = `500 21px ${FONT}`; g.fillText(wrap(g, it.code, CW - 28, 1)[0], x + 14, ty); ty += 29; }
+      // 値札
+      g.font = `700 30px ${FONT}`; const qs = `×${it.qty}`; const qw = g.measureText(qs).width;
+      g.font = `700 22px ${FONT}`; const bs = it.budget ? `${yen(it.budget)}まで` : ''; const bw = bs ? g.measureText(bs).width + 12 : 0;
+      const tw = 26 + qw + bw + 14; ty += 4;
+      g.fillStyle = '#ffd84d'; roundRect(g, x + 14, ty, tw, 42, 8); g.fill();
+      g.fillStyle = '#ffffff'; g.beginPath(); g.arc(x + 25, ty + 21, 4, 0, Math.PI * 2); g.fill();
+      g.fillStyle = '#2a2200'; g.font = `700 30px ${FONT}`; g.fillText(qs, x + 36, ty + 4);
+      if (bs){ g.font = `700 22px ${FONT}`; g.fillText(bs, x + 36 + qw + 12, ty + 11); }
+      // 優先度
+      const ps = it.must ? '必ず' : 'あれば'; g.font = `700 20px ${FONT}`; const pw = g.measureText(ps).width + 14;
+      if (x + 14 + tw + 10 + pw < x + CW - 10){ g.strokeStyle = it.must ? '#c9372f' : '#9aa1b0'; g.lineWidth = 2.5; roundRect(g, x + 14 + tw + 10, ty + 7, pw, 28, 5); g.stroke(); g.fillStyle = it.must ? '#c9372f' : '#5b6476'; g.fillText(ps, x + 14 + tw + 17, ty + 10); }
+      ty += 52;
+      if (it.memo){ g.fillStyle = '#5b6476'; g.font = `500 20px ${FONT}`; for (const line of wrap(g, it.memo, CW - 28, Math.max(1, Math.floor((y + CELL - 10 - ty) / 27)))){ g.fillText(line, x + 14, ty); ty += 27; } }
+    });
+    blobs.push(await new Promise((ok, ng) => c.toBlob(b => b ? ok(b) : ng(new Error('blob')), 'image/png')));
+  }
+  return blobs;
+}
+function roundRect(g, x, y, w, h, r){ g.beginPath(); g.moveTo(x + r, y); g.arcTo(x + w, y, x + w, y + h, r); g.arcTo(x + w, y + h, x, y + h, r); g.arcTo(x, y + h, x, y, r); g.arcTo(x, y, x + w, y, r); g.closePath(); }
+
+/* ---------- 画面: 買い物（友人） ---------- */
+const curRecv = () => recv.find(r => r.list.id === view.id);
+let shopFilter = 'all';
+
+function renderShop(){
+  const r = curRecv(); if (!r) return go({name:'home'});
+  const l = r.list, isMine = lists.some(x => x.id === l.id);
+  setHeader(l.title || '買い物リスト', true, () => shopMenu(r));
+  const t = listTotals(l.items, it => r.got[it.id]);
+  const shown = l.items.map((it, i) => ({it, i})).filter(({it}) => {
+    if (shopFilter === 'all') return true;
+    const g = r.got[it.id] || {}; return !((g.b || 0) >= it.qty || g.x);
+  });
+  $('#main').innerHTML = `
+    <section class="shop-head">
+      ${l.owner ? `<div class="from">${esc(l.owner)}さんからのおつかい</div>` : ''}
+      <h1>${esc(l.title || 'カードの買い物リスト')}</h1>
+      ${isMine ? `<div class="preview-note">これは自分のリストです。友人にはこう見えます（ここでの記録は試し用です）。</div>` : ''}
+      <div class="progress" role="progressbar" aria-valuemin="0" aria-valuemax="${t.kinds}" aria-valuenow="${t.done}"><i style="width:${t.kinds ? t.done / t.kinds * 100 : 0}%"></i></div>
+      <div class="shop-stats num"><span><b>${t.done}</b>/${t.kinds}種類 済み・<b>${t.bought}</b>/${t.cards}枚</span>
+        <span>使った金額 <b>${yen(t.spent)}</b>${t.budget ? `／予算 ${yen(t.budget)}` : ''}</span></div>
+      <div class="chips" role="group" aria-label="表示">
+        <button class="chip" type="button" data-f="all" aria-pressed="${shopFilter === 'all'}">すべて</button>
+        <button class="chip" type="button" data-f="todo" aria-pressed="${shopFilter === 'todo'}">まだのもの</button>
+      </div>
+    </section>
+    <div id="items">
+    ${shown.length ? shown.map(({it, i}) => itemHtml(it, i, r.got[it.id] || {})).join('') : `<div class="empty">ぜんぶ済みました。下の「結果を送る」で知らせましょう。</div>`}
+    </div>`;
+  document.querySelectorAll('[data-f]').forEach(b => b.onclick = () => { shopFilter = b.dataset.f; renderShop(); });
+  bindItems(r);
+  setBottom(`<button class="btn primary" type="button" id="bSend">結果を送る</button>`);
+  $('#bSend').onclick = () => sendResult(r);
+}
+
+function itemHtml(it, i, g){
+  const done = (g.b || 0) >= it.qty, over = it.budget && g.a && g.a > it.budget;
+  const src = imgSrc(it);
+  return `<article class="item ${done ? 'done' : ''} ${g.x && !g.b ? 'miss' : ''}" data-id="${it.id}">
+    <button class="pic" type="button" ${src ? `data-zoom="${esc(src)}" aria-label="${esc(it.name)}の写真を拡大"` : 'disabled'}>
+      ${src ? `<img src="${esc(src)}" alt="" loading="lazy">` : '写真なし'}<span class="no num">${i + 1}</span>${done ? '<span class="stamp">買えた</span>' : ''}</button>
+    <div class="info">
+      <div class="name">${esc(it.name)}</div>${it.code ? `<div class="code">${esc(it.code)}</div>` : ''}
+      <div class="tags">${tagHtml(it)}${it.must ? '<span class="must">必ず</span>' : '<span class="maybe">あれば</span>'}</div>
+      ${it.memo ? `<div class="memo">${esc(it.memo)}</div>` : ''}
+    </div>
+    <div class="controls">
+      <span class="lb">買えた</span>
+      <div class="stepper"><button type="button" data-act="m" aria-label="1枚減らす">−</button>
+        <span class="v num">${g.b || 0}<small>/${it.qty}枚</small></span>
+        <button type="button" data-act="p" aria-label="1枚増やす">＋</button>
+        ${done ? '' : `<button type="button" class="allbtn" data-act="all">全部買えた</button>`}</div>
+      <span class="lb">値段</span>
+      <div><div class="price-in"><input type="number" inputmode="numeric" min="0" step="10" placeholder="1枚の値段" value="${g.a || ''}" data-act="a" aria-label="${esc(it.name)}の1枚の値段"><span>円/枚</span></div>
+        ${over ? `<div class="over num">予算（${yen(it.budget)}）より ${yen(g.a - it.budget)} 高い</div>` : ''}
+        ${g.b && g.a ? `<div class="lb num" style="margin-top:2px">小計 ${yen(g.a * g.b)}</div>` : ''}</div>
+      <button class="miss-btn" type="button" data-act="x" aria-pressed="${!!g.x}">${g.x ? '見つからなかった（取り消す）' : '見つからなかった'}</button>
+    </div>
+  </article>`;
+}
+
+function bindItems(r){
+  const box = $('#items');
+  box.onclick = e => {
+    const z = e.target.closest('[data-zoom]');
+    if (z){ const lb = document.createElement('div'); lb.className = 'lightbox'; lb.innerHTML = `<img src="${esc(z.dataset.zoom)}" alt="">`; lb.onclick = () => lb.remove(); document.body.appendChild(lb); return; }
+    const b = e.target.closest('button[data-act]'); if (!b) return;
+    const art = b.closest('.item'), id = art.dataset.id, it = r.list.items.find(x => x.id === id);
+    const g = r.got[id] = r.got[id] || {b:0, a:0, x:false};
+    if (b.dataset.act === 'p') g.b = Math.min(99, (g.b || 0) + 1);
+    if (b.dataset.act === 'm') g.b = Math.max(0, (g.b || 0) - 1);
+    if (b.dataset.act === 'all') g.b = it.qty;
+    if (b.dataset.act === 'x') g.x = !g.x;
+    if (g.b > 0 && b.dataset.act !== 'x') g.x = false;
+    r.touched = now(); saveRecv(); refreshShop(r);
+  };
+  box.oninput = e => {
+    if (e.target.dataset.act !== 'a') return;
+    const id = e.target.closest('.item').dataset.id, g = r.got[id] = r.got[id] || {b:0, a:0, x:false};
+    const v = parseInt(e.target.value, 10); g.a = v > 0 ? v : 0; r.touched = now(); saveRecv();
+  };
+  box.addEventListener('change', e => { if (e.target.dataset.act === 'a') refreshShop(r); });
+}
+// 入力欄のフォーカスとスクロール位置を保ったまま描き直す
+function refreshShop(r){ const y = window.scrollY; renderShop(); window.scrollTo(0, y); }
+
+function shopMenu(r){
+  const m = openSheet('その他', `
+    <div class="step"><h3>記録をやり直す</h3><p>買えた枚数・値段の記録をすべて消します。</p><button class="btn block" type="button" id="mReset">記録を消す</button></div>
+    <div class="step"><h3>このリストを削除</h3><p>この端末から消します。もう一度リンクを開けば戻せます（記録は消えます）。</p><button class="btn block danger" type="button" id="mDel">削除する</button></div>`);
+  $('#mReset', m).onclick = () => { if (!confirm('記録を消しますか？')) return; r.got = {}; saveRecv(); closeSheet(m); render(); };
+  $('#mDel', m).onclick = () => { if (!confirm('このリストを削除しますか？')) return; recv = recv.filter(x => x !== r); saveRecv(); closeSheet(m); history.replaceState(null, '', location.pathname); go({name:'home'}); };
+}
+
+async function sendResult(r){
+  const l = r.list, t = listTotals(l.items, it => r.got[it.id]);
+  const m = openSheet('結果を送る', `
+    <p style="margin:0 0 12px;font-size:14px" class="num">${t.done}/${t.kinds}種類 済み・${t.bought}枚 購入・合計 <b>${yen(t.spent)}</b></p>
+    <div class="form-row"><label for="rName">あなたの名前</label><input id="rName" type="text" value="${esc(r.me || l.friend || '')}" placeholder="例：たろう"></div>
+    <div class="form-row"><label for="rNote">ひとこと（任意）</label><textarea id="rNote" placeholder="例：3番は売り切れでした。来週入荷するそうです">${esc(r.note || '')}</textarea></div>
+    <div class="step"><h3>${l.owner ? esc(l.owner) + 'さんに' : ''}結果を送る</h3><p>リンクを開くと、相手のリストに結果が入ります。</p>
+      <div class="btns"><button class="btn line" type="button" id="rLine">LINEで送る</button><button class="btn" type="button" id="rShare">ほかのアプリで送る</button><button class="btn" type="button" id="rCopy">コピー</button></div></div>`);
+  if (!navigator.share) $('#rShare', m).classList.add('hidden');
+  const make = async () => {
+    r.me = $('#rName', m).value.trim(); r.note = $('#rNote', m).value.trim(); saveRecv();
+    const k = l.items.map(it => { const g = r.got[it.id]; return g && (g.b || g.a || g.x) ? [it.id, g.b || 0, g.a || 0, g.x ? 1 : 0] : null; }).filter(Boolean);
+    const url = baseUrl() + '#r=' + await pack({k:1, i:l.id, n:r.me, m:r.note, t:now(), r:k});
+    return `${l.title ? '「' + l.title + '」' : 'カード'}の結果です（${t.done}/${t.kinds}種類 済み・合計 ${yen(t.spent)}）。\n${url}`;
+  };
+  $('#rLine', m).onclick = async () => { location.href = 'https://line.me/R/share?text=' + encodeURIComponent(await make()); };
+  $('#rShare', m).onclick = async () => navigator.share({text: await make()}).catch(() => {});
+  $('#rCopy', m).onclick = async () => copyText(await make());
+}
+
+/* ---------- 受け取り ---------- */
+function addReceived(list){
+  const old = recv.find(x => x.list.id === list.id);
+  if (old){
+    // 更新版：記録は同じカードの分だけ残す。写真は新しい方がなければ古い方を使う
+    const prevImgs = Object.fromEntries(old.list.items.map(it => [it.id, it.img]));
+    list.items.forEach(it => { if (!it.img && prevImgs[it.id]) it.img = prevImgs[it.id]; });
+    const ids = new Set(list.items.map(it => it.id));
+    Object.keys(old.got).forEach(k => { if (!ids.has(k)) delete old.got[k]; });
+    old.list = list; old.received = now();
+  } else recv.push({list, got:{}, received: now()});
+  saveRecv();
+}
+
+function applyResult(o){
+  const l = lists.find(x => x.id === o.i);
+  if (!l){ toast('このリストはこの端末にありません。リストを作った端末で開いてください', 4500); return go({name:'home'}); }
+  const t = (o.r || []).length;
+  const m = openSheet('結果が届きました', `
+    <p style="margin:0 0 10px">${esc(o.n || '友人')}さんから「${esc(l.title || '無題のリスト')}」の結果が届きました（${fmtDate(o.t)}）。記録のあるカード ${t}種類。</p>
+    ${o.m ? `<div class="result-note" style="background:var(--surface)">「${esc(o.m)}」</div>` : ''}
+    ${l.rt && l.rt > o.t ? `<div class="preview-note">これより新しい結果がすでに入っています。古い結果で上書きします。</div>` : ''}
+    <div class="sheet-actions"><button class="btn" type="button" id="aNo">入れない</button><button class="btn primary" type="button" id="aYes">リストに入れる</button></div>`);
+  $('#aNo', m).onclick = () => { closeSheet(m); go({name:'own', id:l.id}); };
+  $('#aYes', m).onclick = () => {
+    l.items.forEach(it => delete it.res);
+    for (const [id, b, a, x] of o.r || []){ const it = l.items.find(z => z.id === id); if (it) it.res = {b, a, x: !!x}; }
+    l.rt = o.t; l.rf = o.n || ''; l.rn = o.m || ''; l.updated = now(); saveLists();
+    closeSheet(m); go({name:'own', id:l.id}); toast('結果をリストに入れました');
+  };
+}
+
+async function handleHash(){
+  const h = location.hash;
+  if (/^#[lr]=/.test(h)) document.querySelectorAll('.modal, .lightbox').forEach(m => m.remove()), document.body.style.overflow = '';
+  const lm = h.match(/^#l=(.+)$/), rm = h.match(/^#r=(.+)$/);
+  try {
+    if (lm){
+      const o = await unpack(lm[1]); if (o.k !== 1) throw new Error('bad');
+      const list = unpackList(o); addReceived(list);
+      history.replaceState(null, '', location.pathname);
+      shopFilter = 'all'; go({name:'shop', id:list.id}); return true;
+    }
+    if (rm){
+      const o = await unpack(rm[1]); history.replaceState(null, '', location.pathname);
+      go({name:'home'}); applyResult(o); return true;
+    }
+  } catch(e){
+    history.replaceState(null, '', location.pathname);
+    toast(e.message === 'old' ? 'このブラウザでは開けません。SafariやChromeを新しくしてから開いてください' : 'リンクが途中で切れているようです。もう一度コピーしてもらってください', 5000);
+  }
+  return false;
+}
+
+$('#fileList').onchange = async e => {
+  const f = e.target.files[0]; e.target.value = ''; if (!f) return;
+  try {
+    const o = JSON.parse(await f.text()); if (o.k !== 1 || !Array.isArray(o.c)) throw new Error();
+    const list = unpackList(o); addReceived(list); go({name:'shop', id:list.id}); toast('写真入りのリストを開きました');
+  } catch(err){ toast('このファイルは開けませんでした。カードおつかいリストで作ったファイルを選んでください', 4500); }
+};
+
+window.addEventListener('hashchange', handleHash);
+(async () => { if (!(await handleHash())) render(); })();
+
+if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.hostname === '127.0.0.1' || location.hostname === 'localhost'))
+  window.addEventListener('load', () => navigator.serviceWorker.register('sw.js').catch(() => {}));
+</script>
+</body>
+</html>
