@@ -72,6 +72,7 @@ header.bar .wrap{display:flex;align-items:center;gap:8px;min-height:56px}
 .badge{display:inline-block;font-size:12px;font-weight:700;border-radius:999px;padding:2px 8px;background:var(--ok-bg);color:var(--ok)}
 .empty{border:2px dashed var(--line);border-radius:14px;padding:22px 16px;text-align:center;color:var(--sub);font-size:14px}
 .home .actions{display:flex;gap:8px;flex-wrap:wrap}
+.official{display:inline-flex;align-items:center;gap:6px;color:var(--accent);font-weight:600;font-size:14px;text-decoration:underline;text-underline-offset:3px}
 .foot-note{color:var(--sub);font-size:12px;margin:36px 0 8px;line-height:1.7}
 
 /* owner list */
@@ -230,6 +231,7 @@ const yen = n => '¥' + Math.round(n).toLocaleString('ja-JP');
 const rid = () => Math.random().toString(36).slice(2, 7);
 const now = () => Date.now();
 const fmtDate = t => { const d = new Date(t); return `${d.getMonth()+1}/${d.getDate()} ${d.getHours()}:${String(d.getMinutes()).padStart(2,'0')}`; };
+const OFFICIAL = 'https://tcg.kamitsubaki.jp/cardlist/';
 const LINE_LIMIT = 4900; // LINE のメッセージは 5000 文字まで
 
 function store(k, v){ try { localStorage.setItem(k, JSON.stringify(v)); return true; } catch(e){ toast('保存できませんでした。写真が多すぎる可能性があります（ブラウザの保存容量の上限）'); return false; } }
@@ -272,6 +274,11 @@ function drawTo(img, max, q){
 }
 async function fileToImg(file){ const url = URL.createObjectURL(file); try { return drawTo(await loadImg(url), 520, 0.72); } finally { URL.revokeObjectURL(url); } }
 const imgSrc = it => it.img || it.url || '';
+// 公式の画像アドレスからカード番号を取り出す（例: …/b11_SA-1-600x838.png → SA-1）
+function officialCode(url){
+  const m = /tcg\.kamitsubaki\.jp\/.*\/(?:[a-z0-9]+_)?([A-Za-z]+-\d+)(?:-\d+x\d+)?\.(?:png|jpe?g|webp)$/i.exec(url || '');
+  return m ? m[1] : '';
+}
 
 /* ---------- data ---------- */
 // 自分のリスト: {id,title,friend,owner,updated,items:[{id,name,code,qty,budget,must,memo,img,url,res:{b,a,x}}],rt,rf,rn}
@@ -341,7 +348,8 @@ function renderHome(){
         <div class="s num">${t.kinds}種類 ${t.cards}枚${l.friend ? `／${esc(l.friend)}さんに依頼` : ''}</div></div>
         ${l.rt ? `<span class="badge">結果あり</span>` : ''}</button>`;
     }).join('') : `<div class="empty">まだリストがありません。<br>「新しいリストを作る」から始めましょう。</div>`}
-    <div class="actions" style="margin-top:10px"><button class="btn primary" type="button" id="newList">＋ 新しいリストを作る</button></div>
+    <div class="actions" style="margin-top:10px;align-items:center;gap:16px"><button class="btn primary" type="button" id="newList">＋ 新しいリストを作る</button>
+      <a class="official" href="${OFFICIAL}" target="_blank" rel="noopener">神椿TCG 公式カードリストを開く</a></div>
 
     <h2>頼まれたリスト（買いに行く）</h2>
     ${rv.length ? rv.map(r => {
@@ -455,9 +463,11 @@ function editItem(l, it){
         <div class="ops">
           <button class="btn" type="button" id="ePick">写真を撮る・選ぶ</button>
           <button class="btn hidden" type="button" id="eRm">写真を外す</button>
-          <details><summary class="hint" style="cursor:pointer">画像のURLで指定する</summary>
-            <input id="eUrl" type="url" placeholder="https://…" value="${esc(d.url)}" style="margin-top:6px">
-            <div class="hint">公式カードリストなどの画像アドレス。リンクに入れても短いままで送れます。</div></details>
+          <details ${d.url ? 'open' : ''}><summary class="hint" style="cursor:pointer">公式カードリストの画像を使う</summary>
+            <a class="official" href="${OFFICIAL}" target="_blank" rel="noopener" style="margin-top:6px">公式カードリストを開く</a>
+            <div class="hint">カード画像を長押し（PCは右クリック）→「画像アドレスをコピー」して、下に貼り付けます。</div>
+            <input id="eUrl" type="url" placeholder="https://tcg.kamitsubaki.jp/…png" value="${esc(d.url)}" style="margin-top:6px">
+            <div class="hint">画像アドレスはリンクに入れても短いので、写真が多くても送れます。</div></details>
         </div>
       </div></div>
     <div class="form-row"><label for="eName">カード名</label><input id="eName" type="text" placeholder="例：【証明】祭壇" value="${esc(d.name)}"></div>
@@ -490,7 +500,11 @@ function editItem(l, it){
   const pick = () => { const f = $('#fileImg'); f.value = ''; f.onchange = async () => { const file = f.files[0]; if (!file) return; try { d.img = await fileToImg(file); pv(); } catch(e){ toast('この画像は読み込めませんでした'); } }; f.click(); };
   $('#ePick', m).onclick = pick; $('#ePv', m).onclick = pick;
   $('#eRm', m).onclick = () => { d.img = ''; pv(); };
-  $('#eUrl', m).oninput = e => { d.url = e.target.value.trim(); pv(); };
+  $('#eUrl', m).oninput = e => {
+    d.url = e.target.value.trim(); pv();
+    const code = officialCode(d.url), ce = $('#eCode', m);
+    if (code && !ce.value.trim()) ce.value = code;
+  };
   $('#eQm', m).onclick = () => { d.qty = Math.max(1, d.qty - 1); qty(); };
   $('#eQp', m).onclick = () => { d.qty = Math.min(99, d.qty + 1); qty(); };
   $('#eMust', m).onclick = () => { d.must = true; seg(); };
@@ -622,7 +636,7 @@ async function makeListImages(l){
       g.save(); roundRect(g, x, y, CW, IH, 18); g.clip(); g.fillStyle = '#dfe3ea'; g.fillRect(x, y, CW, IH);
       const im = imgs[idx];
       if (im){ const s = Math.min(CW / im.naturalWidth, IH / im.naturalHeight), w = im.naturalWidth * s, h = im.naturalHeight * s; try { g.drawImage(im, x + (CW - w) / 2, y + (IH - h) / 2, w, h); } catch(e){} }
-      else { g.fillStyle = '#8a92a3'; g.font = `500 26px ${FONT}`; g.textAlign = 'center'; g.fillText('写真なし', x + CW / 2, y + IH / 2 - 14); g.textAlign = 'left'; }
+      else { g.fillStyle = '#8a92a3'; g.font = `500 26px ${FONT}`; g.textAlign = 'center'; if (imgSrc(it)){ g.fillText('画像はリンクの', x + CW / 2, y + IH / 2 - 30); g.fillText('ページで確認', x + CW / 2, y + IH / 2 + 4); } else g.fillText('写真なし', x + CW / 2, y + IH / 2 - 14); g.textAlign = 'left'; }
       g.restore();
       // 番号
       g.fillStyle = '#1d2433'; g.beginPath(); g.arc(x + 34, y + 34, 24, 0, Math.PI * 2); g.fill();
@@ -668,6 +682,7 @@ function renderShop(){
     <section class="shop-head">
       ${l.owner ? `<div class="from">${esc(l.owner)}さんからのおつかい</div>` : ''}
       <h1>${esc(l.title || 'カードの買い物リスト')}</h1>
+      <p style="margin:-4px 0 10px"><a class="official" href="${OFFICIAL}" target="_blank" rel="noopener">公式カードリストで確認する</a></p>
       ${isMine ? `<div class="preview-note">これは自分のリストです。友人にはこう見えます（ここでの記録は試し用です）。</div>` : ''}
       <div class="progress" role="progressbar" aria-valuemin="0" aria-valuemax="${t.kinds}" aria-valuenow="${t.done}"><i style="width:${t.kinds ? t.done / t.kinds * 100 : 0}%"></i></div>
       <div class="shop-stats num"><span><b>${t.done}</b>/${t.kinds}種類 済み・<b>${t.bought}</b>/${t.cards}枚</span>
