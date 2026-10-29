@@ -794,7 +794,7 @@ details>summary{cursor:pointer;color:var(--muted);font-size:12px;letter-spacing:
       <label class="check" id="artistwrap"><input type="checkbox" id="artist"> <span class="long">手札からArtistを出した（1ターン1枚）</span><span class="short">Artist済</span></label>
       <div class="ctrlrow">
         <span class="diewrap"><button class="die" id="die" aria-label="サイコロを振る">–</button><button class="dicen" id="dicen" type="button">×1</button></span>
-        <div class="judge" id="judge"><span>・4以上</span><span>・偶数</span><span class="by">タップで振る</span></div>
+        <div class="judge" id="judge"><span>・4以上</span><span>・偶数／奇数</span><span class="by">タップで振る</span></div>
         <button class="btn primary" id="endturn">ターン終了</button>
         <button class="btn" id="undo" aria-label="直前の操作を戻す">↶ 戻す</button>
         <button class="btn danger" id="reset2" data-label="リセット" data-armed="もう一度で実行">リセット</button>
@@ -1306,8 +1306,9 @@ function roll(){
   if (pendingThrow && Date.now() - pendingThrow.at < 1500) t = normThrow(pendingThrow);
   pendingThrow = null;
   patch('game', {dice:{v: vs[0], vs, by, n: Date.now(), s: sd, r, t, k: ''}});
-  if (N === 1) addLog(`${by}：サイコロ ${vs[0]}`);
-  else addLog(`${by}：サイコロ${N}個 ${vs.join('・')}（4以上 ${vs.filter(v => v >= 4).length}個）`);
+  const ev = vs.filter(v => v % 2 === 0).length;
+  if (N === 1) addLog(`${by}：サイコロ ${vs[0]}（${ev ? '偶数' : '奇数'}）`);
+  else addLog(`${by}：サイコロ${N}個 ${vs.join('・')}（4以上 ${vs.filter(v => v >= 4).length}個・偶数 ${ev}個・奇数 ${N - ev}個）`);
   return true;
 }
 function normThrow(p){
@@ -1681,9 +1682,9 @@ function diceResultHTML(d, vs){
     return `<span class="fpv">${esc(pn('p1'))} <b>${a}</b></span><span class="fpv">${esc(pn('p2'))} <b>${b}</b></span>` +
       (w ? `<span class="y">${esc(pn(w))} が先攻・後攻を選ぶ</span>` : `<span>同じ目：もう一度振ってください</span>`);
   }
-  if (vs.length === 1){ const v = vs[0]; return `<b>${v}</b><span class="${v >= 4 ? 'y' : ''}">${v >= 4 ? '✓' : '×'} 4以上</span><span class="${v % 2 === 0 ? 'y' : ''}">${v % 2 === 0 ? '✓' : '×'} 偶数</span>`; }
+  if (vs.length === 1){ const v = vs[0]; return `<b>${v}</b><span class="${v >= 4 ? 'y' : ''}">${v >= 4 ? '✓' : '×'} 4以上</span><span class="${v % 2 === 0 ? 'y' : ''}">${v % 2 === 0 ? '偶数' : '奇数'}</span>`; }
   const c4 = vs.filter(v => v >= 4).length, ce = vs.filter(v => v % 2 === 0).length, sum = vs.reduce((s, v) => s + v, 0);
-  return `<b>${vs.join(' ')}</b><span class="${c4 ? 'y' : ''}">4以上 ${c4}個</span><span class="${ce ? 'y' : ''}">偶数 ${ce}個</span><span>合計 ${sum}</span>`;
+  return `<b>${vs.join(' ')}</b><span class="${c4 ? 'y' : ''}">4以上 ${c4}個</span><span class="${ce ? 'y' : ''}">偶数 ${ce}個・奇数 ${vs.length - ce}個</span><span>合計 ${sum}</span>`;
 }
 // 止まったときの向き
 const finalOf = (v, tilt) => { const [fx, fy] = FACE_ROT[v]; return {tilt, fx, fy, t: `rotateZ(${tilt + 720}deg) rotateX(${fx + 1080}deg) rotateY(${fy + 720}deg)`}; };
@@ -1971,10 +1972,10 @@ function render(){
   if (dv.length > 1 && d.k !== 'fp'){
     const c4 = dv.filter(v => v >= 4).length, ce = dv.filter(v => v % 2 === 0).length;
     js[0].className = c4 ? 'y' : ''; js[0].textContent = `4以上 ${c4}/${dv.length}個`;
-    js[1].className = ce ? 'y' : ''; js[1].textContent = `偶数 ${ce}/${dv.length}個`;
+    js[1].className = ce ? 'y' : ''; js[1].textContent = `偶数 ${ce}・奇数 ${dv.length - ce}`;
   } else {
     js[0].className = d && d.v >= 4 ? 'y' : ''; js[0].textContent = (d && d.v >= 4 ? '✓ ' : '・') + '4以上';
-    js[1].className = d && d.v % 2 === 0 ? 'y' : ''; js[1].textContent = (d && d.v % 2 === 0 ? '✓ ' : '・') + '偶数';
+    js[1].className = d && d.v % 2 === 0 ? 'y' : ''; js[1].textContent = !d || d.k === 'fp' ? '・偶数／奇数' : (d.v % 2 === 0 ? '✓ 偶数' : '・奇数');
   }
   js[2].textContent = d ? (d.k === 'fp' ? '先攻決めのサイコロ' : `${d.by} が振りました`) : 'タップで振る';
 
