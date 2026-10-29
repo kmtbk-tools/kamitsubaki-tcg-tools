@@ -793,7 +793,7 @@ details>summary{cursor:pointer;color:var(--muted);font-size:12px;letter-spacing:
       </div>
       <label class="check" id="artistwrap"><input type="checkbox" id="artist"> <span class="long">手札からArtistを出した（1ターン1枚）</span><span class="short">Artist済</span></label>
       <div class="ctrlrow">
-        <span class="diewrap"><button class="die" id="die" aria-label="サイコロを振る">–</button><button class="dicen" id="dicen" type="button">×1</button></span>
+        <span class="diewrap"><button class="die" id="die" aria-label="サイコロを振る">–</button></span>
         <div class="judge" id="judge"><span>・4以上</span><span>・偶数／奇数</span><span class="by">タップで振る</span></div>
         <button class="btn primary" id="endturn">ターン終了</button>
         <button class="btn" id="undo" aria-label="直前の操作を戻す">↶ 戻す</button>
@@ -1584,8 +1584,6 @@ function buildDiceStage(){
 }
 function setDiceN(n){
   diceN = Math.min(MAXD, Math.max(1, n)); store.set('kt-dicen', String(diceN));
-  const b = $('dicen'); b.textContent = '×' + diceN; b.classList.toggle('multi', diceN > 1);
-  b.setAttribute('aria-label', `振る個数 ${diceN}個（タップで変更）`);
   if (diceStage) diceStage.querySelectorAll('[data-dn]').forEach(x => x.setAttribute('aria-pressed', String(+x.dataset.dn === diceN)));
 }
 // 結果を閉じたとき、オンラインでは相手の画面の結果も閉じる（閉じたサイコロの番号を共有）
@@ -2131,21 +2129,25 @@ $('fpsheet-x').onclick = () => { fpClosed = true; render(); };
 $('fpsheet').addEventListener('click', e => { if (e.target === $('fpsheet')){ fpClosed = true; render(); } });
 $('capsheet-x').onclick = () => { $('capsheet').hidden = true; };
 $('capsheet').addEventListener('click', e => { if (e.target === $('capsheet')) $('capsheet').hidden = true; });
-$('die').onclick = () => { if ($('swipe').checked) openDicePicker(); else roll(); };
-// 個数は押すたびに変わるのではなく、メニューから選ぶ（押し間違いで変わらないように）
+// サイコロを押すと、まず振る個数を選ぶメニューを出す（選ぶとすぐ振る。スワイプ設定時ははじく画面へ）
 function closeDiceMenu(){ const m = $('dicemenu'); if (m) m.remove(); }
-$('dicen').onclick = e => {
+$('die').onclick = e => {
   e.stopPropagation();
   if ($('dicemenu')){ closeDiceMenu(); return; }
+  if (mode === 'online' && seat === 'watch'){ toast('観戦中は操作できません'); return; }
   const m = document.createElement('div'); m.className = 'dicemenu'; m.id = 'dicemenu'; m.setAttribute('role', 'menu');
-  m.innerHTML = '<span class="dm-t">振る数</span>' + Array.from({length: MAXD}, (_, i) => `<button type="button" data-dn="${i+1}" aria-pressed="${i+1 === diceN}">${i+1}個</button>`).join('');
+  m.innerHTML = '<span class="dm-t">何個振る？</span>' + Array.from({length: MAXD}, (_, i) => `<button type="button" data-dn="${i+1}" aria-pressed="${i+1 === diceN}">${i+1}個</button>`).join('');
   document.body.appendChild(m);
-  const r = $('dicen').getBoundingClientRect(), w = m.offsetWidth, h = m.offsetHeight;
-  m.style.left = Math.max(8, Math.min(innerWidth - w - 8, r.left - 10)) + 'px';
+  const r = $('die').getBoundingClientRect(), w = m.offsetWidth, h = m.offsetHeight;
+  m.style.left = Math.max(8, Math.min(innerWidth - w - 8, r.left)) + 'px';
   m.style.top = (r.bottom + 8 + h < innerHeight ? r.bottom + 8 : Math.max(8, r.top - h - 8)) + 'px';
-  m.onclick = ev => { const b = ev.target.closest('[data-dn]'); if (!b) return; ev.stopPropagation(); setDiceN(+b.dataset.dn); closeDiceMenu(); toast(`サイコロを${b.dataset.dn}個振ります`); };
+  m.onclick = ev => {
+    const b = ev.target.closest('[data-dn]'); if (!b) return; ev.stopPropagation();
+    setDiceN(+b.dataset.dn); closeDiceMenu();
+    if ($('swipe').checked) openDicePicker(); else roll();
+  };
 };
-document.addEventListener('pointerdown', e => { if ($('dicemenu') && !e.target.closest('#dicemenu,#dicen')) closeDiceMenu(); }, true);
+document.addEventListener('pointerdown', e => { if ($('dicemenu') && !e.target.closest('#dicemenu,#die')) closeDiceMenu(); }, true);
 addEventListener('resize', closeDiceMenu);
 setDiceN(diceN);
 $('decide').onclick = decideFirst;
