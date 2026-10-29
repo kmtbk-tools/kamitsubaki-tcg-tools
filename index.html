@@ -1177,7 +1177,7 @@ function dial(){
       if (m.seat !== seat){
         seat = m.seat;
         if (seat !== 'watch'){ bigP = seat; store.set('kt-seat-guest', seat); }
-        toast(seat === 'watch' ? 'プレイヤーの席が埋まっているため、観戦で参加しました' : `選んだ席が使われていたため ${seat.toUpperCase()} で参加しました`);
+        toast(m.swap ? `ホストと席を入れ替えました（あなたは ${seat.toUpperCase()}）` : seat === 'watch' ? 'プレイヤーの席が埋まっているため、観戦で参加しました' : `選んだ席は相手が使っているため ${seat.toUpperCase()} になりました（ホストが席を選び直すと入れ替われます）`);
         render();
       }
       return;
@@ -2103,7 +2103,15 @@ document.addEventListener('click', e => {
   if (b.dataset.first) return chooseFirst(b.dataset.first);
   if (b.dataset.mull){ if (!canEdit(b.dataset.mull)){ toast('相手の値は操作できません'); return; } const p = b.dataset.mull, v = Math.max(0, (S[p].mull||0) + (+b.dataset.d)); patch(p, {mull:v}); addLog(`${pn(p)}：引き直し ${v}回`, p); return; }
   if (b.dataset.seat){
-    if (role === 'host' && b.dataset.seat !== 'watch' && [...conns].some(x => x.seat === b.dataset.seat)){ toast('その席は相手が使っています'); return; }
+    if (role === 'host' && b.dataset.seat !== 'watch'){
+      const holder = [...conns].find(x => x.seat === b.dataset.seat);
+      if (holder){
+        // ホストが相手の席を選んだら、相手と席を入れ替える（P1/P2 どうしのとき）
+        if (seat !== 'p1' && seat !== 'p2'){ toast('その席は相手が使っています'); return; }
+        holder.seat = seat; try { holder.send({t:'seat', seat, want: seat, swap: true}); } catch(e){}
+        toast(`相手と席を入れ替えました（あなたは ${b.dataset.seat.toUpperCase()}）`);
+      }
+    }
     seat = b.dataset.seat; store.set(role === 'host' ? 'kt-seat-host' : 'kt-seat-guest', seat);
     if (seat !== 'watch') bigP = seat; sendHello(); render(); return;
   }
