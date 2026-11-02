@@ -1060,6 +1060,8 @@ const CID = (() => { let v = store.get('kt-cid'); if (!v){ v = Math.random().toS
 let joinedOnce = false;
 
 // ---------- networking (PeerJS, host-authoritative) ----------
+// 生きている接続だけ（切れかけの古い接続は席の判定に使わない）
+const liveConns = () => [...conns].filter(x => x.open && (!x.lastSeen || Date.now() - x.lastSeen < 12000));
 function broadcast(from, q){
   for (const c of conns){ if (!c.open) continue; try { c.send(c === from ? {t:'s', s:S, q} : {t:'s', s:S}); } catch(e){} }
 }
@@ -1093,7 +1095,12 @@ function startHost(code, resumeState){
       if (!m || typeof m !== 'object') return;
       const seated = c.seat === 'p1' || c.seat === 'p2';
       c.lastSeen = Date.now();
-      if (m.t === 'ping'){ try { c.send({t:'pong'}); } catch(e){} return; }
+      if (m.t === 'ping'){
+        try { c.send({t:'pong'}); } catch(e){}
+        // 席の食い違い（入れ替えの連絡が届かなかった等）を見つけたら、ホストの割り当てに合わせてもらう
+        if (c.seat && m.seat && m.seat !== c.seat){ netLog(`ホスト：相手の席を ${c.seat.toUpperCase()} に合わせ直し`); try { c.send({t:'seat', seat: c.seat, want: c.seat, sync: true}); } catch(e){} }
+        return;
+      }
       if (m.t === 'r'){ if (seated) doReset(); return; }
       if (m.t === 'h'){
         const want = (m.seat === 'p1' || m.seat === 'p2') ? m.seat : 'watch';
@@ -1101,7 +1108,7 @@ function startHost(code, resumeState){
         for (const x of [...conns]) if (x !== c && c.cid && x.cid === c.cid){ conns.delete(x); try { x.close(); } catch(e){} }
         let got = want;
         if (want !== 'watch'){
-          const taken = new Set([seat, ...[...conns].filter(x => x !== c).map(x => x.seat)]);
+          const taken = new Set([seat, ...liveConns().filter(x => x !== c).map(x => x.seat)]);
           if (taken.has(want)) got = ['p1','p2'].find(x => !taken.has(x)) || 'watch';
         }
         c.seat = got; try { c.send({t:'seat', seat:got, want}); } catch(e){}
@@ -1175,9 +1182,9 @@ function dial(){
     if (m && m.t === 'pong') return;
     if (m && m.t === 'seat'){
       if (m.seat !== seat){
-        seat = m.seat;
+        seat = m.seat; onHist.length = 0;
         if (seat !== 'watch'){ bigP = seat; store.set('kt-seat-guest', seat); }
-        toast(m.swap ? `ホストと席を入れ替えました（あなたは ${seat.toUpperCase()}）` : seat === 'watch' ? 'プレイヤーの席が埋まっているため、観戦で参加しました' : `選んだ席は相手が使っているため ${seat.toUpperCase()} になりました（ホストが席を選び直すと入れ替われます）`);
+        netLog('参加：席が ' + seat.toUpperCase() + ' に'); toast(m.sync ? `席をホストの設定に合わせました（あなたは ${seat === 'watch' ? '観戦' : seat.toUpperCase()}）` : m.swap ? `ホストと席を入れ替えました（あなたは ${seat.toUpperCase()}）` : seat === 'watch' ? 'プレイヤーの席が埋まっているため、観戦で参加しました' : `選んだ席は相手が使っているため ${seat.toUpperCase()} になりました（ホストが席を選び直すと入れ替われます）`);
         render();
       }
       return;
@@ -1226,7 +1233,7 @@ function reconnectNow(){
 setInterval(() => {
   if (mode !== 'online') return;
   if (role === 'guest' && conn && conn.open){
-    try { conn.send({t:'ping'}); } catch(e){}
+    try { conn.send({t:'ping', seat}); } catch(e){}
     if (netState === 'connected' && Date.now() - lastSeen > 12000){ netLog('参加：12秒応答なし'); try { conn.close(); } catch(e){} conn = null; reconnectNow(); }
   }
   if (role === 'host' && peer && roomCode){
@@ -2104,15 +2111,17 @@ document.addEventListener('click', e => {
   if (b.dataset.mull){ if (!canEdit(b.dataset.mull)){ toast('相手の値は操作できません'); return; } const p = b.dataset.mull, v = Math.max(0, (S[p].mull||0) + (+b.dataset.d)); patch(p, {mull:v}); addLog(`${pn(p)}：引き直し ${v}回`, p); return; }
   if (b.dataset.seat){
     if (role === 'host' && b.dataset.seat !== 'watch'){
-      const holder = [...conns].find(x => x.seat === b.dataset.seat);
+      const lc = liveConns(), holder = lc.find(x => x.seat === b.dataset.seat);
       if (holder){
-        // ホストが相手の席を選んだら、相手と席を入れ替える（P1/P2 どうしのとき）
-        if (seat !== 'p1' && seat !== 'p2'){ toast('その席は相手が使っています'); return; }
-        holder.seat = seat; try { holder.send({t:'seat', seat, want: seat, swap: true}); } catch(e){}
+        // ホストが相手の席を選んだら、相手と席を入れ替える（ホストが観戦中なら、相手を空いている席へ）
+        const to = (seat === 'p1' || seat === 'p2') ? seat : ['p1','p2'].find(x => x !== b.dataset.seat && !lc.some(y => y.seat === x));
+        if (!to){ toast('その席は相手が使っています'); return; }
+        holder.seat = to; try { holder.send({t:'seat', seat: to, want: to, swap: true}); } catch(e){}
+        netLog(`ホスト：席を入れ替え（自分 ${b.dataset.seat.toUpperCase()}／相手 ${to.toUpperCase()}）`);
         toast(`相手と席を入れ替えました（あなたは ${b.dataset.seat.toUpperCase()}）`);
       }
     }
-    seat = b.dataset.seat; store.set(role === 'host' ? 'kt-seat-host' : 'kt-seat-guest', seat);
+    seat = b.dataset.seat; onHist.length = 0; store.set(role === 'host' ? 'kt-seat-host' : 'kt-seat-guest', seat);
     if (seat !== 'watch') bigP = seat; sendHello(); render(); return;
   }
 });
