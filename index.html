@@ -705,6 +705,10 @@ body.ovmode>*:not(#ov){display:none!important}
 .ovbar.vert:not(.num) .ovg.v .ic{grid-area:ic} .ovbar.vert:not(.num) .ovg.v .ovn{grid-area:n;text-align:right} .ovbar.vert:not(.num) .ovg.v .ovp{grid-area:p;justify-content:start;padding-left:calc(5.4*var(--u))}
 .ovbar.vert.num{gap:calc(1.2*var(--u))} .ovbar.vert.num .ovn{text-align:right;min-width:2.2em}
 .ovbar.grid{display:grid;grid-template-columns:auto auto;gap:calc(1.4*var(--u)) calc(3*var(--u))}
+.members{display:flex;flex-direction:column;gap:6px}
+.mrow2{display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap}
+.mrow2 .mlabel{font-size:13px;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.mrow2 .mlabel small{color:var(--muted);margin-left:4px}
 .ovbox{border-top:1px solid var(--line-soft);padding-top:10px;margin-top:4px}
 .ovbox b{font-size:14px}
 </style>
@@ -786,6 +790,8 @@ body.ovmode>*:not(#ov){display:none!important}
         <div class="srow"><span class="slabel">自分の席</span>
           <div class="seg" role="group" aria-label="自分の席"><button data-seat="p1">P1</button><button data-seat="p2">P2</button><button data-seat="watch">観戦</button></div>
         </div>
+        <div class="members" id="members" hidden><span class="slabel">参加者の席</span><div id="memberlist"></div>
+          <p class="note">ホストは参加者の席を変えられます。観戦者を P1／P2 にすると、その席にいた人と入れ替わります（名前・数値は席に付いたままです）。</p></div>
         <label class="check oecheck"><input type="checkbox" id="oe"> <span>相手の数値も操作できるようにする<small class="note" id="oenote"></small></span></label>
         <p class="note" id="roomnote"></p>
         <div class="ovbox" id="ovbox"><b>配信用表示（OBS）</b>
@@ -1110,11 +1116,34 @@ let joinedOnce = false;
 // ---------- networking (PeerJS, host-authoritative) ----------
 // 生きている接続だけ（切れかけの古い接続は席の判定に使わない）
 const liveConns = () => [...conns].filter(x => x.open && (!x.lastSeen || Date.now() - x.lastSeen < 12000));
+let midSeq = 0;
 const playerConns = () => [...conns].filter(c => !c.ov);
 function seatMap(){
   const sm = {p1: '', p2: ''}; if (seat === 'p1' || seat === 'p2') sm[seat] = CID;
   for (const c of liveConns()) if (!c.ov && (c.seat === 'p1' || c.seat === 'p2') && c.cid) sm[c.seat] = c.cid;
   return sm;
+}
+// ホストが席を割り当てる（target は 'host' か接続）。行き先の席に誰かいれば、その人と入れ替える
+function hostAssign(target, ns){
+  const lc = liveConns().filter(x => !x.ov);
+  const cur = target === 'host' ? seat : target.seat;
+  if (cur === ns) return;
+  const moves = [[target, ns]];
+  if (ns !== 'watch'){
+    const holder = seat === ns && target !== 'host' ? 'host' : lc.find(x => x !== target && x.seat === ns);
+    if (holder){
+      let to = cur;
+      if (to === 'watch' && target === 'host') to = ['p1','p2'].find(x => x !== ns && seat !== x && !lc.some(y => y.seat === x)) || 'watch';
+      moves.push([holder, to]);
+    }
+  }
+  for (const [who, st] of moves){
+    if (who === 'host'){ seat = st; onHist.length = 0; store.set('kt-seat-host', st); if (st !== 'watch') bigP = st; }
+    else { who.seat = st; try { who.send({t:'seat', seat: st, want: st, assign: true}); } catch(e){} }
+  }
+  netLog('ホスト：席の変更 ' + moves.map(([w, st]) => (w === 'host' ? 'ホスト' : '参加者' + w.mid) + '→' + (st === 'watch' ? '観戦' : st.toUpperCase())).join('・'));
+  toast(moves.length > 1 ? '席を入れ替えました' : '席を変更しました');
+  broadcast(null, 0); render();
 }
 const stMsg = q => q ? {t:'s', s:S, q, sm: seatMap()} : {t:'s', s:S, sm: seatMap()};
 function broadcast(from, q){
@@ -1141,7 +1170,7 @@ function startHost(code, resumeState){
   peer.on('open', () => { hostOpened = true; netState = 'hosting'; retries = 0; netLog('ホスト：サーバーに接続'); persist(); render(); });
   peer.on('connection', c => {
     c.on('open', () => {
-      c.ov = !!(c.metadata && c.metadata.ov);
+      c.ov = !!(c.metadata && c.metadata.ov); c.mid = ++midSeq;
       netLog(c.ov ? 'ホスト：配信用表示がつながった' : 'ホスト：相手がつながった'); watchIce(c, c.ov ? '配信用表示' : '相手'); if (!c.ov) logRoute(c, 'ホスト：');
       const first = !c.ov && playerConns().length === 0; c.lastSeen = Date.now(); conns.add(c); try { c.send(stMsg(0)); } catch(e){}
       if (first){ closeSettings(); toast('相手が接続しました'); }
@@ -1160,7 +1189,7 @@ function startHost(code, resumeState){
       if (m.t === 'r'){ if (seated) doReset(); return; }
       if (m.t === 'h'){
         const want = (m.seat === 'p1' || m.seat === 'p2') ? m.seat : 'watch';
-        c.cid = String(m.cid || '').slice(0, 40);
+        c.cid = String(m.cid || '').slice(0, 40); c.dev = String(m.dev || '').replace(/[^\w\u3040-\u30ff\u4e00-\u9fff]/g, '').slice(0, 12);
         for (const x of [...conns]) if (x !== c && c.cid && x.cid === c.cid){ conns.delete(x); try { x.close(); } catch(e){} }
         let got = want;
         if (want !== 'watch'){
@@ -1241,7 +1270,8 @@ function dial(){
       if (m.seat !== seat){
         seat = m.seat; onHist.length = 0;
         if (seat !== 'watch'){ bigP = seat; store.set('kt-seat-guest', seat); }
-        netLog('参加：席が ' + seat.toUpperCase() + ' に'); toast(m.sync ? `席をホストの設定に合わせました（あなたは ${seat === 'watch' ? '観戦' : seat.toUpperCase()}）` : m.swap ? `ホストと席を入れ替えました（あなたは ${seat.toUpperCase()}）` : seat === 'watch' ? 'プレイヤーの席が埋まっているため、観戦で参加しました' : `選んだ席は相手が使っているため ${seat.toUpperCase()} になりました（ホストが席を選び直すと入れ替われます）`);
+        try { const l = JSON.parse(store.get('kt-last')); if (l && l.role === 'guest'){ l.watch = seat === 'watch'; store.set('kt-last', JSON.stringify(l)); } } catch(e){}
+        netLog('参加：席が ' + seat.toUpperCase() + ' に'); toast(m.assign ? `ホストが席を変更しました（あなたは ${seat === 'watch' ? '観戦' : seat.toUpperCase()}）` : m.sync ? `席をホストの設定に合わせました（あなたは ${seat === 'watch' ? '観戦' : seat.toUpperCase()}）` : m.swap ? `ホストと席を入れ替えました（あなたは ${seat.toUpperCase()}）` : seat === 'watch' ? 'プレイヤーの席が埋まっているため、観戦で参加しました' : `選んだ席は相手が使っているため ${seat.toUpperCase()} になりました（ホストが席を選び直すと入れ替われます）`);
         render();
       }
       return;
@@ -1263,7 +1293,8 @@ function capOnlyPatch(k, o, from){
   if (!o || typeof o !== 'object' || !S[k]) return false;
   return Object.keys(o).every(x => MOD_KEYS.includes(x) || (['a','b','o','noise'].includes(x) && Number.isInteger(o[x]) && o[x] <= (S[k][x] || 0)));
 }
-function sendHello(){ if (role === 'guest' && conn && conn.open){ try { conn.send({t:'h', seat, cid: CID}); } catch(e){} } }
+const DEV = (u => /iPad/.test(u) ? 'iPad' : /iPhone/.test(u) ? 'iPhone' : /Android/.test(u) ? 'Android' : /Mac/.test(u) ? 'Mac' : /Windows/.test(u) ? 'Windows' : 'その他')(navigator.userAgent);
+function sendHello(){ if (role === 'guest' && conn && conn.open){ try { conn.send({t:'h', seat, cid: CID, dev: DEV}); } catch(e){} } }
 function scheduleRetry(){
   clearTimeout(retryT);
   if (role !== 'guest') return;
@@ -2082,6 +2113,14 @@ function render(){
   if (role){
     $('roomcode').textContent = roomCode || '----';
     $('ovme').hidden = seat !== 'p1' && seat !== 'p2';
+    $('members').hidden = role !== 'host';
+    if (role === 'host'){
+      const seg = (mid, cur) => `<div class="seg" role="group">${[['p1','P1'],['p2','P2'],['watch','観戦']].map(([k, t]) => `<button type="button" data-mseat="${mid}:${k}" aria-pressed="${cur === k}">${t}</button>`).join('')}</div>`;
+      const lab = (st, dev, me) => (me ? 'あなた（ホスト）' : st === 'watch' || !st ? '観戦者' : esc(pn(st))) + (dev ? `<small>${esc(dev)}</small>` : '');
+      const rows = [`<div class="mrow2"><span class="mlabel">${lab(seat, '', true)}</span>${seg('host', seat)}</div>`]
+        .concat(liveConns().filter(c => !c.ov).sort((a, b) => a.mid - b.mid).map(c => `<div class="mrow2"><span class="mlabel">${lab(c.seat, c.dev)}</span>${seg(c.mid, c.seat || 'watch')}</div>`));
+      const html = rows.join(''); if ($('memberlist').dataset.h !== html){ $('memberlist').innerHTML = html; $('memberlist').dataset.h = html; }
+    }
     $('linktext').textContent = inviteURL();
     document.querySelectorAll('[data-seat]').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.seat === seat)));
     $('oe').checked = !!S.game.oe; $('oe').disabled = role !== 'host';
@@ -2212,18 +2251,14 @@ document.addEventListener('click', e => {
   if (b.dataset.phase) return setPhase(b.dataset.phase);
   if (b.dataset.first) return chooseFirst(b.dataset.first);
   if (b.dataset.mull){ if (!canEdit(b.dataset.mull)){ toast('相手の値は操作できません'); return; } const p = b.dataset.mull, v = Math.max(0, (S[p].mull||0) + (+b.dataset.d)); patch(p, {mull:v}); addLog(`${pn(p)}：引き直し ${v}回`, p); return; }
+  if (b.dataset.mseat){
+    if (role !== 'host') return;
+    const [mid, ns] = b.dataset.mseat.split(':');
+    const t = mid === 'host' ? 'host' : [...conns].find(x => String(x.mid) === mid);
+    if (t) hostAssign(t, ns); return;
+  }
   if (b.dataset.seat){
-    if (role === 'host' && b.dataset.seat !== 'watch'){
-      const lc = liveConns(), holder = lc.find(x => x.seat === b.dataset.seat);
-      if (holder){
-        // ホストが相手の席を選んだら、相手と席を入れ替える（ホストが観戦中なら、相手を空いている席へ）
-        const to = (seat === 'p1' || seat === 'p2') ? seat : ['p1','p2'].find(x => x !== b.dataset.seat && !lc.some(y => y.seat === x));
-        if (!to){ toast('その席は相手が使っています'); return; }
-        holder.seat = to; try { holder.send({t:'seat', seat: to, want: to, swap: true}); } catch(e){}
-        netLog(`ホスト：席を入れ替え（自分 ${b.dataset.seat.toUpperCase()}／相手 ${to.toUpperCase()}）`);
-        toast(`相手と席を入れ替えました（あなたは ${b.dataset.seat.toUpperCase()}）`);
-      }
-    }
+    if (role === 'host'){ hostAssign('host', b.dataset.seat); return; }
     seat = b.dataset.seat; onHist.length = 0; store.set(role === 'host' ? 'kt-seat-host' : 'kt-seat-guest', seat);
     if (seat !== 'watch') bigP = seat; sendHello(); if (role === 'host') broadcast(null, 0); render(); return;
   }
