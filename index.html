@@ -2091,9 +2091,11 @@ function ovBar(p, pos){
     ${['a','b','o'].map(k => `<span class="ovg ${k} c-${k}">${IC[k]}<span class="ovp">${pips(k, 5)}</span>${num(k, s[k] || 0)}</span>`).join('')}
   </div>`;
 }
+addEventListener('resize', () => { if (OV) renderOverlay(); });
 function renderOverlay(){
   if (!OV) return;
   const el = $('ov'); el.hidden = false;
+  el.style.setProperty('--u', Math.min(innerHeight / 100, innerWidth / 175) + 'px');   // 幅と高さの小さい方に合わせる（CSSが効かない環境向けにもJSで指定）
   const me = (OV.cid && lastSM ? ['p1','p2'].find(k => lastSM[k] === OV.cid) : null) || OV.seat;
   const bottom = me || 'p1';
   el.innerHTML = OV.kind === 'me' ? ovBar(bottom, 'bot') : ovBar(other(bottom), 'top') + ovBar(bottom, 'bot');
