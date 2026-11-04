@@ -674,6 +674,29 @@ details>summary{cursor:pointer;color:var(--muted);font-size:12px;letter-spacing:
 .dicemenu .dm-t{align-self:center;font-size:12px;color:var(--muted);margin-right:2px;white-space:nowrap}
 .dicemenu button{min-width:44px;height:44px;border-radius:10px;border:1px solid var(--line);background:var(--panel);color:var(--fg);font-size:15px;font-weight:700}
 .dicemenu button[aria-pressed="true"]{background:var(--gold);color:#1a1408;border-color:var(--gold)}
+/* 配信用表示（OBSのブラウザソース用）：背景透明、VOLと魔力だけ */
+html.ovmode,body.ovmode{background:transparent!important;min-height:0;padding:0;overflow:hidden}
+body.ovmode>*:not(#ov){display:none!important}
+#ov{position:fixed;inset:0;pointer-events:none;font-family:var(--f-num)}
+.ovbar{position:absolute;left:50%;transform:translateX(-50%);display:flex;align-items:center;gap:3.2vh;padding:1.3vh 2.6vh;border-radius:2vh;background:rgba(16,13,28,.84);border:.15vh solid rgba(255,255,255,.14);box-shadow:0 .8vh 3vh rgba(0,0,0,.45);white-space:nowrap}
+.ovbar.bot{bottom:2.2vh} .ovbar.top{top:2.2vh}
+.ovbar.turn{border-color:var(--gold);box-shadow:0 0 0 .2vh rgba(214,180,106,.5),0 .8vh 3vh rgba(0,0,0,.45)}
+.ovg{display:flex;align-items:center;gap:1.1vh}
+.ovg .ic{width:4.6vh;height:4.6vh;flex:0 0 auto}
+.ovp{display:flex;gap:.55vh}
+.ovp i{display:block;width:3.1vh;height:3.1vh;border-radius:50%;border:.25vh solid var(--c);opacity:.5;box-sizing:border-box}
+.ovp i.on{opacity:1;background:radial-gradient(circle at 35% 30%,#fff8,var(--c) 60%);box-shadow:0 0 1vh -.2vh var(--c)}
+.ovp i.sealed{opacity:.25;border-style:dashed}
+.ovg.v{--c:var(--gold)} .ovg.v .ovp i{width:3.3vh;height:3.3vh}
+.ovg.v .ovp i.on{background:radial-gradient(circle at 35% 30%,#f7e3a8,var(--gold) 55%,#8a6a2a)}
+.ovn{font-size:4.4vh;font-weight:800;line-height:1;color:#fff;min-width:1.2em;text-align:center;text-shadow:0 .2vh .6vh rgba(0,0,0,.6)}
+.ovg.v .ovn{color:var(--gold);min-width:2.6em}
+.ovn small{font-size:.5em;color:var(--muted);font-weight:600}
+.ovg.a .ovn{color:var(--alpha)} .ovg.b .ovn{color:var(--beta)} .ovg.o .ovn{color:var(--omega-t)}
+@keyframes ovpop{0%{transform:scale(1.35);text-shadow:0 0 1.6vh var(--gold)}100%{transform:none}}
+.ovn.chg{animation:ovpop .7s ease-out}
+.ovbox{border-top:1px solid var(--line-soft);padding-top:10px;margin-top:4px}
+.ovbox b{font-size:14px}
 </style>
 </head>
 <body>
@@ -755,6 +778,10 @@ details>summary{cursor:pointer;color:var(--muted);font-size:12px;letter-spacing:
         </div>
         <label class="check oecheck"><input type="checkbox" id="oe"> <span>相手の数値も操作できるようにする<small class="note" id="oenote"></small></span></label>
         <p class="note" id="roomnote"></p>
+        <div class="ovbox" id="ovbox"><b>配信用表示（OBS）</b>
+          <div class="row" style="margin-top:6px"><button class="btn" id="ovme">自分の表示のリンクをコピー</button><button class="btn" id="ovboth">2人の表示のリンクをコピー</button></div>
+          <p class="note">OBSの「ソース」→「＋」→「ブラウザ」でURLに貼り付け、幅1920・高さ1080にしてください。背景は透明で、VOLと魔力だけを表示します（自分の表示は画面の下、2人の表示は上下に分けて表示。2人のときは自分が下）。観戦として入るので対戦の席は使いません。リンクには対戦コードが入っているので、配信画面やコメント欄に映さないでください。</p>
+        </div>
         <details class="netlogbox"><summary>接続の記録（切れたときの調査用）</summary><pre id="netlog" class="netlog"></pre><button class="btn" id="copynetlog">記録をコピー</button></details>
         <button class="btn" id="leave">対戦から抜ける</button>
       </div>
@@ -837,6 +864,7 @@ details>summary{cursor:pointer;color:var(--muted);font-size:12px;letter-spacing:
   </div>
 </div>
 <div class="toast" id="toast" hidden role="status"></div>
+<div id="ov" hidden aria-hidden="true"></div>
 
 <script src="peerjs.min.js"></script>
 <script>
@@ -993,6 +1021,10 @@ function snapshot(){
   histTick = true; setTimeout(() => { histTick = false; }, 0);
 }
 // オンライン：自分が変えた直前の値を戻す（その後に相手が同じ値を変えていたら戻さない）
+// 配信用表示（?ov=me|both&room=…&s=席&c=端末ID）
+const OV = (() => { const q = new URLSearchParams(location.search), v = q.get('ov'); if (v !== 'me' && v !== 'both') return null;
+  const st = q.get('s'); return {kind: v, seat: st === 'p1' || st === 'p2' ? st : null, cid: (q.get('c') || '').replace(/[^a-z0-9]/gi, '').slice(0, 40)}; })();
+let lastSM = null;   // ホストから届く「どの席にどの端末がいるか」
 const onHist = []; let undoing = false;
 let prevVals = null, localTick = false;   // 相手の変更を光らせる用
 function undoOnline(){
@@ -1062,8 +1094,15 @@ let joinedOnce = false;
 // ---------- networking (PeerJS, host-authoritative) ----------
 // 生きている接続だけ（切れかけの古い接続は席の判定に使わない）
 const liveConns = () => [...conns].filter(x => x.open && (!x.lastSeen || Date.now() - x.lastSeen < 12000));
+const playerConns = () => [...conns].filter(c => !c.ov);
+function seatMap(){
+  const sm = {p1: '', p2: ''}; if (seat === 'p1' || seat === 'p2') sm[seat] = CID;
+  for (const c of liveConns()) if (!c.ov && (c.seat === 'p1' || c.seat === 'p2') && c.cid) sm[c.seat] = c.cid;
+  return sm;
+}
+const stMsg = q => q ? {t:'s', s:S, q, sm: seatMap()} : {t:'s', s:S, sm: seatMap()};
 function broadcast(from, q){
-  for (const c of conns){ if (!c.open) continue; try { c.send(c === from ? {t:'s', s:S, q} : {t:'s', s:S}); } catch(e){} }
+  for (const c of conns){ if (!c.open) continue; try { c.send(c === from ? stMsg(q) : stMsg(0)); } catch(e){} }
 }
 function newCode(){ const ch = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; return Array.from({length:4}, () => ch[Math.floor(Math.random()*ch.length)]).join(''); }
 function teardown(){
@@ -1086,8 +1125,9 @@ function startHost(code, resumeState){
   peer.on('open', () => { hostOpened = true; netState = 'hosting'; retries = 0; netLog('ホスト：サーバーに接続'); persist(); render(); });
   peer.on('connection', c => {
     c.on('open', () => {
-      netLog('ホスト：相手がつながった'); watchIce(c, '相手'); logRoute(c, 'ホスト：');
-      const first = conns.size === 0; c.lastSeen = Date.now(); conns.add(c); try { c.send({t:'s', s:S}); } catch(e){}
+      c.ov = !!(c.metadata && c.metadata.ov);
+      netLog(c.ov ? 'ホスト：配信用表示がつながった' : 'ホスト：相手がつながった'); watchIce(c, c.ov ? '配信用表示' : '相手'); if (!c.ov) logRoute(c, 'ホスト：');
+      const first = !c.ov && playerConns().length === 0; c.lastSeen = Date.now(); conns.add(c); try { c.send(stMsg(0)); } catch(e){}
       if (first){ closeSettings(); toast('相手が接続しました'); }
       render();
     });
@@ -1111,8 +1151,9 @@ function startHost(code, resumeState){
           const taken = new Set([seat, ...liveConns().filter(x => x !== c).map(x => x.seat)]);
           if (taken.has(want)) got = ['p1','p2'].find(x => !taken.has(x)) || 'watch';
         }
+        if (c.ov) got = 'watch';
         c.seat = got; try { c.send({t:'seat', seat:got, want}); } catch(e){}
-        render(); return;
+        broadcast(null, 0); render(); return;
       }
       if (m.t === 'l'){
         if (!seated) return;
@@ -1121,14 +1162,14 @@ function startHost(code, resumeState){
         return;
       }
       if (m.t !== 'p' || !(m.k in S)) return;
-      const reject = () => { try { c.send({t:'s', s:S, q:m.q|0}); } catch(e){} };
+      const reject = () => { try { c.send(stMsg(m.q|0)); } catch(e){} };
       if (m.o && typeof m.o === 'object'){ delete m.o.log; delete m.o.oe; }
       if (m.k !== 'game' && m.k !== c.seat && !(S.game.oe && seated) && !capOnlyPatch(m.k, m.o, c.seat)) return reject();
       if (m.k === 'game' && !seated) return reject();
       if (m.k === 'game' && m.o && !('first' in m.o) && Object.keys(m.o).some(x => TURN_KEYS.includes(x)) && S.game.first && c.seat !== S.game.active) return reject();
       Object.assign(S[m.k], clean(m.k, m.o)); persist(); broadcast(c, m.q|0); render();
     });
-    c.on('close', () => { netLog('ホスト：相手との接続が閉じた'); conns.delete(c); render(); });
+    c.on('close', () => { netLog(c.ov ? 'ホスト：配信用表示が閉じた' : 'ホスト：相手との接続が閉じた'); conns.delete(c); broadcast(null, 0); render(); });
     c.on('error', e => { netLog('ホスト：相手との接続エラー ' + ((e && e.type) || '')); conns.delete(c); render(); });
   });
   // サーバー（シグナリング）とだけ切れた状態。相手との通信はそのまま続くので、裏でつなぎ直す（4秒ごとの見回りでも再試行）
@@ -1168,7 +1209,7 @@ function startGuest(code, asWatch){
 }
 function dial(){
   if (!peer || peer.destroyed || !roomCode) return;
-  const c = peer.connect(PFX + roomCode, {reliable:true});
+  const c = peer.connect(PFX + roomCode, OV ? {reliable:true, metadata:{ov:1}} : {reliable:true});
   const old = conn; conn = c;
   if (old && old !== c){ try { old.close(); } catch(e){} }
   c.on('open', () => {
@@ -1190,6 +1231,7 @@ function dial(){
       return;
     }
     if (!m || m.t !== 's' || !m.s) return;
+    if (m.sm && typeof m.sm === 'object') lastSM = {p1: String(m.sm.p1 || ''), p2: String(m.sm.p2 || '')};
     const s = defaults();
     for (const k of ['game','p1','p2']) Object.assign(s[k], clean(k, m.s[k]));
     if (m.q) unacked = unacked.filter(u => u.q > m.q);
@@ -1947,7 +1989,7 @@ function render(){
 
   const bottom = bigP, top = other(bottom);
   updatePanel($('panel-bottom'), bottom); updatePanel($('panel-top'), top); updateMini(top);
-  flashRemote();
+  flashRemote(); renderOverlay();
   $('panel-top').setAttribute('aria-label', pn(top)); $('panel-bottom').setAttribute('aria-label', pn(bottom));
 
   const g = S.game;
@@ -1962,6 +2004,7 @@ function render(){
   setBtnLabel($('endturn'), !g.first ? '先攻・後攻' : oppTurn ? '相手の手番' : 'ターン終了');
 
   const d = g.dice, die = $('die');
+  if (OV && d) lastDie = d.n;
   if (d && d.n !== lastDie){
     if (Math.abs(Date.now() - d.n) < 8000 && g.dcl !== d.n){
       // 自分がサイコロをはじこうとしている最中に相手が振ったら、画面はそのままにして結果だけ知らせる
@@ -2012,7 +2055,7 @@ function render(){
   // network UI
   const pill = $('netpill');
   const states = {
-    idle:['', 'オンライン・未接続'], connecting:['wait','接続中…'], hosting:['on', `<span class="pc">${esc(roomCode)}・</span>${conns.size ? '接続中' : '相手待ち'}`],
+    idle:['', 'オンライン・未接続'], connecting:['wait','接続中…'], hosting:['on', `<span class="pc">${esc(roomCode)}・</span>${playerConns().length ? '接続中' : '相手待ち'}`],
     connected:['on', `<span class="pc">${esc(roomCode)}・</span>接続中`], lost:['wait','再接続中…'], notfound:['bad','対戦が見つかりません'], error:['bad','接続できません']
   };
   const ns = role === 'host' && [...conns].some(c => c.open) ? 'hosting' : netState;   // サーバーと切れていても相手とつながっていれば接続中
@@ -2022,12 +2065,13 @@ function render(){
   $('lobby').hidden = !!role; $('room').hidden = !role;
   if (role){
     $('roomcode').textContent = roomCode || '----';
+    $('ovme').hidden = seat !== 'p1' && seat !== 'p2';
     $('linktext').textContent = inviteURL();
     document.querySelectorAll('[data-seat]').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.seat === seat)));
     $('oe').checked = !!S.game.oe; $('oe').disabled = role !== 'host';
     $('oenote').textContent = role === 'host' ? 'オンにすると、2人ともお互いのVOL・ノイズ・魔力・LIMITEDを操作できます' : 'ホストだけが変更できます';
     $('roomnote').textContent = role === 'host'
-      ? `あなたがこの対戦のホストです。このページを閉じると対戦が止まります（開き直せば再開できます）。接続中の相手：${conns.size}人` + ([...conns].some(c => c.seat && c.seat === seat) ? '　⚠ 相手と同じ席を選んでいます。どちらかが席を変えてください。' : '')
+      ? `あなたがこの対戦のホストです。このページを閉じると対戦が止まります（開き直せば再開できます）。接続中の相手：${playerConns().length}人` + (conns.size > playerConns().length ? `（配信用表示 ${conns.size - playerConns().length}）` : '') + ([...conns].some(c => c.seat && c.seat === seat) ? '　⚠ 相手と同じ席を選んでいます。どちらかが席を変えてください。' : '')
       : (netState === 'notfound' ? 'コードが合っているか、作成した人がページを開いたままか確認してください。自動で再試行します。' : 'ホストの端末と直接つながっています。');
   }
   const last = (() => { try { return JSON.parse(store.get('kt-last')); } catch(e){ return null; } })();
@@ -2035,6 +2079,33 @@ function render(){
   if (!role && last && last.code && Date.now() - (last.at||0) < 12*3600*1000){
     rs.hidden = false; rs.textContent = `前回の対戦 ${last.code} に${last.role === 'host' ? '戻る（ホスト）' : '再参加'}`;
   } else rs.hidden = true;
+}
+// 配信用表示を描く（2人のときは自分が下、相手が上。観戦者のリンクは P1 が下）
+const ovPrev = {};
+function ovBar(p, pos){
+  const s = S[p], g = S.game;
+  const pips = (k, n) => Array.from({length: n}, (_, i) => `<i class="${i < (s[k] || 0) ? 'on' : ''}${k !== 'vol' && i >= capOf(p, k) ? ' sealed' : ''}"></i>`).join('');
+  const num = (k, html) => { const key = p + k, v = s[k] || 0, chg = key in ovPrev && ovPrev[key] !== v; ovPrev[key] = v; return `<span class="ovn${chg ? ' chg' : ''}">${html}</span>`; };
+  return `<div class="ovbar ${pos}${g.first && g.active === p ? ' turn' : ''}">
+    <span class="ovg v">${IC.vol}<span class="ovp">${pips('vol', 10)}</span>${num('vol', `${s.vol || 0}<small>/10</small>`)}</span>
+    ${['a','b','o'].map(k => `<span class="ovg ${k} c-${k}">${IC[k]}<span class="ovp">${pips(k, 5)}</span>${num(k, s[k] || 0)}</span>`).join('')}
+  </div>`;
+}
+function renderOverlay(){
+  if (!OV) return;
+  const el = $('ov'); el.hidden = false;
+  const me = (OV.cid && lastSM ? ['p1','p2'].find(k => lastSM[k] === OV.cid) : null) || OV.seat;
+  const bottom = me || 'p1';
+  el.innerHTML = OV.kind === 'me' ? ovBar(bottom, 'bot') : ovBar(other(bottom), 'top') + ovBar(bottom, 'bot');
+}
+$('ovme').onclick = () => copyOv('me');
+$('ovboth').onclick = () => copyOv('both');
+async function copyOv(kind){
+  if (!roomCode) return;
+  const u = new URL(inviteURL()); u.searchParams.set('ov', kind);
+  if (seat === 'p1' || seat === 'p2'){ u.searchParams.set('s', seat); u.searchParams.set('c', CID); }
+  try { await navigator.clipboard.writeText(u.toString()); toast(kind === 'me' ? '自分の表示のリンクをコピーしました。OBSのブラウザソースに貼ってください' : '2人の表示のリンクをコピーしました。OBSのブラウザソースに貼ってください'); }
+  catch(e){ toast('コピーできませんでした'); }
 }
 // オンライン：相手の端末で変わった数値を光らせ、1〜2項目なら通知も出す
 const FLASH_KEYS = ['vol','noise','a','b','o','lu'];
@@ -2122,7 +2193,7 @@ document.addEventListener('click', e => {
       }
     }
     seat = b.dataset.seat; onHist.length = 0; store.set(role === 'host' ? 'kt-seat-host' : 'kt-seat-guest', seat);
-    if (seat !== 'watch') bigP = seat; sendHello(); render(); return;
+    if (seat !== 'watch') bigP = seat; sendHello(); if (role === 'host') broadcast(null, 0); render(); return;
   }
 });
 document.addEventListener('change', e => {
@@ -2255,7 +2326,11 @@ $('follow').checked = store.get('kt-follow') !== '0';
 bigP = 'p1';
 const qs = new URLSearchParams(location.search);
 const qroom = (qs.get('room') || '').toUpperCase();
-if (/^[A-Z0-9]{4}$/.test(qroom)){
+if (OV && /^[A-Z0-9]{4}$/.test(qroom)){
+  // 配信用表示：観戦として入り、VOLと魔力だけを透明な背景に表示する
+  document.documentElement.classList.add('ovmode'); document.body.classList.add('ovmode');
+  mode = 'online'; S = defaults(); render(); startGuest(qroom, true);
+} else if (/^[A-Z0-9]{4}$/.test(qroom)){
   mode = 'online'; S = defaults(); loadView(); $('joincode').value = qroom;
   $('settings').hidden = false; $('setbtn').setAttribute('aria-expanded','true');
   render(); startGuest(qroom, false);
