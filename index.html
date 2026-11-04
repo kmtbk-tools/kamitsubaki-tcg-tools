@@ -696,11 +696,13 @@ body.ovmode>*:not(#ov){display:none!important}
 @keyframes ovpop{0%{transform:scale(1.35);text-shadow:0 0 calc(1.6*var(--u)) var(--gold)}100%{transform:none}}
 .ovn.chg{animation:ovpop .7s ease-out}
 .ovbar.num{gap:calc(3*var(--u))} .ovbar.num .ovn{font-size:calc(5.6*var(--u))} .ovbar.num .ovg .ic{width:calc(5.4*var(--u));height:calc(5.4*var(--u))}
-/* 縦長（画面の左右に置く用）と2×2 */
+/* 縦長（画面の左右に置く用）と2×2。縦長の2人・自分の表示は左右に置く（自分が右） */
+.ovbar.vert.top{top:50%;left:calc(2.2*var(--u));transform:translateY(-50%)}
+.ovbar.vert.bot{top:50%;bottom:auto;left:auto;right:calc(2.2*var(--u));transform:translateY(-50%)}
 .ovbar.vert{flex-direction:column;align-items:stretch;gap:calc(1.6*var(--u));padding:calc(1.6*var(--u))}
 .ovbar.vert .ovg{justify-content:space-between}
 .ovbar.vert:not(.num) .ovg.v{display:grid;grid-template-columns:auto 1fr;grid-template-areas:"ic n" "p p";row-gap:calc(.8*var(--u))}
-.ovbar.vert:not(.num) .ovg.v .ic{grid-area:ic} .ovbar.vert:not(.num) .ovg.v .ovn{grid-area:n;text-align:right} .ovbar.vert:not(.num) .ovg.v .ovp{grid-area:p}
+.ovbar.vert:not(.num) .ovg.v .ic{grid-area:ic} .ovbar.vert:not(.num) .ovg.v .ovn{grid-area:n;text-align:right} .ovbar.vert:not(.num) .ovg.v .ovp{grid-area:p;justify-content:start;padding-left:calc(5.4*var(--u))}
 .ovbar.vert.num{gap:calc(1.2*var(--u))} .ovbar.vert.num .ovn{text-align:right;min-width:2.2em}
 .ovbar.grid{display:grid;grid-template-columns:auto auto;gap:calc(1.4*var(--u)) calc(3*var(--u))}
 .ovbox{border-top:1px solid var(--line-soft);padding-top:10px;margin-top:4px}
@@ -789,7 +791,10 @@ body.ovmode>*:not(#ov){display:none!important}
         <div class="ovbox" id="ovbox"><b>配信用表示（OBS）</b>
           <div class="row" style="margin-top:6px"><button class="btn" id="ovme">自分の表示のリンクをコピー</button><button class="btn" id="ovboth">2人の表示のリンクをコピー</button></div>
           <div class="row" style="margin-top:6px"><button class="btn" id="ovp1">P1用のリンクをコピー</button><button class="btn" id="ovp2">P2用のリンクをコピー</button></div>
-          <p class="note">P1用・P2用は1人分だけを表示します。OBSでソースを2つ作れば、それぞれ好きな位置・大きさに置けます（ブラウザソースは幅1920・高さ200くらいがおすすめ。帯はソースの大きさいっぱいに広がります）。</p>
+          <p class="note">P1用・P2用は1人分だけを表示します。OBSでソースを2つ作れば、それぞれ好きな位置・大きさに置けます。帯はソースの大きさいっぱいに広がります（おすすめの大きさ：横長は幅1920・高さ200、縦長は幅360・高さ720。縦長の2人の表示は左右に分けて自分が右）。形とチェックを選んでからリンクをコピーしてください。</p>
+          <div class="srow" style="margin-top:6px"><span class="slabel">形</span>
+            <div class="seg" role="group" aria-label="配信用表示の形"><button type="button" id="ovly-h" aria-pressed="true">横長</button><button type="button" id="ovly-v" aria-pressed="false">縦長</button></div>
+          </div>
           <label class="check"><input type="checkbox" id="ovnum"> <span>丸を出さず、アイコンと数字だけを大きく表示<small class="note">カメラ映像の上に重ねて見やすくしたいとき向け</small></span></label>
           <p class="note">OBSの「ソース」→「＋」→「ブラウザ」でURLに貼り付け、幅1920・高さ1080にしてください。背景は透明で、VOLと魔力だけを表示します（自分の表示は画面の下、2人の表示は上下に分けて表示。2人のときは自分が下）。観戦として入るので対戦の席は使いません。リンクには対戦コードが入っているので、配信画面やコメント欄に映さないでください。</p>
         </div>
@@ -2118,15 +2123,18 @@ function renderOverlay(){
   // 帯ができるだけ大きくなるように：横幅いっぱい（96%）まで広げ、高さは画面の16%まで
   el.style.setProperty('--u', '10px');
   const bar = el.querySelector('.ovbar'), w = bar.offsetWidth / 10, h = bar.offsetHeight / 10;
-  if (w && h) el.style.setProperty('--u', Math.min(innerWidth * .96 / w, innerHeight * (solo ? .9 : OV.kind === 'me' ? .3 : OV.num ? .14 : .16) / h) + 'px');
+  if (w && h) el.style.setProperty('--u', (OV.vert && !solo ? Math.min(innerWidth * .2 / w, innerHeight * .9 / h) : Math.min(innerWidth * .96 / w, innerHeight * (solo ? .9 : OV.kind === 'me' ? .3 : OV.num ? .14 : .16) / h)) + 'px');
 }
 $('ovme').onclick = () => copyOv('me');
 $('ovboth').onclick = () => copyOv('both');
+let ovLy = 'h';
+const setOvLy = v => { ovLy = v; $('ovly-h').setAttribute('aria-pressed', String(v === 'h')); $('ovly-v').setAttribute('aria-pressed', String(v === 'v')); };
+$('ovly-h').onclick = () => setOvLy('h'); $('ovly-v').onclick = () => setOvLy('v');
 $('ovp1').onclick = () => copyOv('p1');
 $('ovp2').onclick = () => copyOv('p2');
 async function copyOv(kind){
   if (!roomCode) return;
-  const u = new URL(inviteURL()); u.searchParams.set('ov', kind); if ($('ovnum').checked) u.searchParams.set('st', 'n');
+  const u = new URL(inviteURL()); u.searchParams.set('ov', kind); if ($('ovnum').checked) u.searchParams.set('st', 'n'); if (ovLy === 'v') u.searchParams.set('ly', 'v');
   if ((kind === 'me' || kind === 'both') && (seat === 'p1' || seat === 'p2')){ u.searchParams.set('s', seat); u.searchParams.set('c', CID); }
   try { await navigator.clipboard.writeText(u.toString()); toast(({me:'自分の表示', both:'2人の表示', p1:'P1用', p2:'P2用'})[kind] + 'のリンクをコピーしました。OBSのブラウザソースに貼ってください'); }
   catch(e){ toast('コピーできませんでした'); }
