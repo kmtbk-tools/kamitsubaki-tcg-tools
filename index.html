@@ -678,23 +678,24 @@ details>summary{cursor:pointer;color:var(--muted);font-size:12px;letter-spacing:
 html.ovmode,body.ovmode{background:transparent!important;min-height:0;padding:0;overflow:hidden}
 body.ovmode>*:not(#ov){display:none!important}
 #ov{position:fixed;inset:0;--u:min(1vh,.57vw);pointer-events:none;font-family:var(--f-num)}
-.ovbar{position:absolute;left:50%;transform:translateX(-50%);display:flex;align-items:center;gap:calc(3.2*var(--u));padding:calc(1.3*var(--u)) calc(2.6*var(--u));border-radius:calc(2*var(--u));background:rgba(6,5,12,.97);border:calc(.15*var(--u)) solid rgba(255,255,255,.16);box-shadow:0 calc(.8*var(--u)) calc(3*var(--u)) rgba(0,0,0,.45);white-space:nowrap}
+.ovbar{position:absolute;left:50%;transform:translateX(-50%);display:flex;align-items:center;gap:calc(2.2*var(--u));padding:calc(1.1*var(--u)) calc(1.8*var(--u));border-radius:calc(2*var(--u));background:rgba(6,5,12,.97);border:calc(.15*var(--u)) solid rgba(255,255,255,.16);box-shadow:0 calc(.8*var(--u)) calc(3*var(--u)) rgba(0,0,0,.45);white-space:nowrap}
 .ovbar.bot{bottom:calc(2.2*var(--u))} .ovbar.top{top:calc(2.2*var(--u))}
 .ovbar.turn{border-color:var(--gold);box-shadow:0 0 0 calc(.2*var(--u)) rgba(214,180,106,.5),0 calc(.8*var(--u)) calc(3*var(--u)) rgba(0,0,0,.45)}
-.ovg{display:flex;align-items:center;gap:calc(1.1*var(--u))}
+.ovg{display:flex;align-items:center;gap:calc(.8*var(--u))}
 .ovg .ic{width:calc(4.6*var(--u));height:calc(4.6*var(--u));flex:0 0 auto}
 .ovp{display:flex;gap:calc(.55*var(--u))}
 .ovp i{display:block;width:calc(3.1*var(--u));height:calc(3.1*var(--u));border-radius:50%;border:calc(.25*var(--u)) solid var(--c);opacity:.5;box-sizing:border-box}
 .ovp i.on{opacity:1;background:radial-gradient(circle at 35% 30%,#fff8,var(--c) 60%);box-shadow:0 0 calc(1*var(--u)) -calc(.2*var(--u)) var(--c)}
 .ovp i.sealed{opacity:.25;border-style:dashed}
-.ovg.v{--c:var(--gold)} .ovg.v .ovp i{width:calc(3.3*var(--u));height:calc(3.3*var(--u))}
+.ovg.v{--c:var(--gold)} .ovg.v .ovp{display:grid;grid-template-columns:repeat(5,auto);gap:calc(.5*var(--u))} .ovg.v .ovp i{width:calc(3.3*var(--u));height:calc(3.3*var(--u))}
 .ovg.v .ovp i.on{background:radial-gradient(circle at 35% 30%,#f7e3a8,var(--gold) 55%,#8a6a2a)}
-.ovn{font-size:calc(4.4*var(--u));font-weight:800;line-height:1;color:#fff;min-width:1.2em;text-align:center;text-shadow:0 calc(.2*var(--u)) calc(.6*var(--u)) rgba(0,0,0,.6)}
-.ovg.v .ovn{color:var(--gold);min-width:2.6em}
+.ovn{font-size:calc(4.4*var(--u));font-weight:800;line-height:1;color:#fff;min-width:1em;text-align:center;text-shadow:0 calc(.2*var(--u)) calc(.6*var(--u)) rgba(0,0,0,.6)}
+.ovg.v .ovn{color:var(--gold);min-width:1.9em}
 .ovn small{font-size:.5em;color:var(--muted);font-weight:600}
 .ovg.a .ovn{color:var(--alpha)} .ovg.b .ovn{color:var(--beta)} .ovg.o .ovn{color:var(--omega-t)}
 @keyframes ovpop{0%{transform:scale(1.35);text-shadow:0 0 calc(1.6*var(--u)) var(--gold)}100%{transform:none}}
 .ovn.chg{animation:ovpop .7s ease-out}
+.ovbar.num{gap:calc(3*var(--u))} .ovbar.num .ovn{font-size:calc(5.6*var(--u))} .ovbar.num .ovg .ic{width:calc(5.4*var(--u));height:calc(5.4*var(--u))}
 .ovbox{border-top:1px solid var(--line-soft);padding-top:10px;margin-top:4px}
 .ovbox b{font-size:14px}
 </style>
@@ -780,6 +781,7 @@ body.ovmode>*:not(#ov){display:none!important}
         <p class="note" id="roomnote"></p>
         <div class="ovbox" id="ovbox"><b>配信用表示（OBS）</b>
           <div class="row" style="margin-top:6px"><button class="btn" id="ovme">自分の表示のリンクをコピー</button><button class="btn" id="ovboth">2人の表示のリンクをコピー</button></div>
+          <label class="check"><input type="checkbox" id="ovnum"> <span>丸を出さず、アイコンと数字だけを大きく表示<small class="note">カメラ映像の上に重ねて見やすくしたいとき向け</small></span></label>
           <p class="note">OBSの「ソース」→「＋」→「ブラウザ」でURLに貼り付け、幅1920・高さ1080にしてください。背景は透明で、VOLと魔力だけを表示します（自分の表示は画面の下、2人の表示は上下に分けて表示。2人のときは自分が下）。観戦として入るので対戦の席は使いません。リンクには対戦コードが入っているので、配信画面やコメント欄に映さないでください。</p>
         </div>
         <details class="netlogbox"><summary>接続の記録（切れたときの調査用）</summary><pre id="netlog" class="netlog"></pre><button class="btn" id="copynetlog">記録をコピー</button></details>
@@ -1023,7 +1025,7 @@ function snapshot(){
 // オンライン：自分が変えた直前の値を戻す（その後に相手が同じ値を変えていたら戻さない）
 // 配信用表示（?ov=me|both&room=…&s=席&c=端末ID）
 const OV = (() => { const q = new URLSearchParams(location.search), v = q.get('ov'); if (v !== 'me' && v !== 'both') return null;
-  const st = q.get('s'); return {kind: v, seat: st === 'p1' || st === 'p2' ? st : null, cid: (q.get('c') || '').replace(/[^a-z0-9]/gi, '').slice(0, 40)}; })();
+  const st = q.get('s'); return {num: q.get('st') === 'n', kind: v, seat: st === 'p1' || st === 'p2' ? st : null, cid: (q.get('c') || '').replace(/[^a-z0-9]/gi, '').slice(0, 40)}; })();
 let lastSM = null;   // ホストから届く「どの席にどの端末がいるか」
 const onHist = []; let undoing = false;
 let prevVals = null, localTick = false;   // 相手の変更を光らせる用
@@ -2086,6 +2088,10 @@ function ovBar(p, pos){
   const s = S[p], g = S.game;
   const pips = (k, n) => Array.from({length: n}, (_, i) => `<i class="${i < (s[k] || 0) ? 'on' : ''}${k !== 'vol' && i >= capOf(p, k) ? ' sealed' : ''}"></i>`).join('');
   const num = (k, html) => { const key = p + k, v = s[k] || 0, chg = key in ovPrev && ovPrev[key] !== v; ovPrev[key] = v; return `<span class="ovn${chg ? ' chg' : ''}">${html}</span>`; };
+  if (OV.num) return `<div class="ovbar num ${pos}${g.first && g.active === p ? ' turn' : ''}">
+    <span class="ovg v">${IC.vol}${num('vol', `${s.vol || 0}<small>/10</small>`)}</span>
+    ${['a','b','o'].map(k => `<span class="ovg ${k} c-${k}">${IC[k]}${num(k, s[k] || 0)}</span>`).join('')}
+  </div>`;
   return `<div class="ovbar ${pos}${g.first && g.active === p ? ' turn' : ''}">
     <span class="ovg v">${IC.vol}<span class="ovp">${pips('vol', 10)}</span>${num('vol', `${s.vol || 0}<small>/10</small>`)}</span>
     ${['a','b','o'].map(k => `<span class="ovg ${k} c-${k}">${IC[k]}<span class="ovp">${pips(k, 5)}</span>${num(k, s[k] || 0)}</span>`).join('')}
@@ -2095,16 +2101,19 @@ addEventListener('resize', () => { if (OV) renderOverlay(); });
 function renderOverlay(){
   if (!OV) return;
   const el = $('ov'); el.hidden = false;
-  el.style.setProperty('--u', Math.min(innerHeight / 100, innerWidth / 175) + 'px');   // 幅と高さの小さい方に合わせる（CSSが効かない環境向けにもJSで指定）
   const me = (OV.cid && lastSM ? ['p1','p2'].find(k => lastSM[k] === OV.cid) : null) || OV.seat;
   const bottom = me || 'p1';
   el.innerHTML = OV.kind === 'me' ? ovBar(bottom, 'bot') : ovBar(other(bottom), 'top') + ovBar(bottom, 'bot');
+  // 帯ができるだけ大きくなるように：横幅いっぱい（96%）まで広げ、高さは画面の16%まで
+  el.style.setProperty('--u', '10px');
+  const bar = el.querySelector('.ovbar'), w = bar.offsetWidth / 10, h = bar.offsetHeight / 10;
+  if (w && h) el.style.setProperty('--u', Math.min(innerWidth * .96 / w, innerHeight * (OV.kind === 'me' ? .3 : OV.num ? .14 : .16) / h) + 'px');
 }
 $('ovme').onclick = () => copyOv('me');
 $('ovboth').onclick = () => copyOv('both');
 async function copyOv(kind){
   if (!roomCode) return;
-  const u = new URL(inviteURL()); u.searchParams.set('ov', kind);
+  const u = new URL(inviteURL()); u.searchParams.set('ov', kind); if ($('ovnum').checked) u.searchParams.set('st', 'n');
   if (seat === 'p1' || seat === 'p2'){ u.searchParams.set('s', seat); u.searchParams.set('c', CID); }
   try { await navigator.clipboard.writeText(u.toString()); toast(kind === 'me' ? '自分の表示のリンクをコピーしました。OBSのブラウザソースに貼ってください' : '2人の表示のリンクをコピーしました。OBSのブラウザソースに貼ってください'); }
   catch(e){ toast('コピーできませんでした'); }
