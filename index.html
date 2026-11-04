@@ -696,6 +696,13 @@ body.ovmode>*:not(#ov){display:none!important}
 @keyframes ovpop{0%{transform:scale(1.35);text-shadow:0 0 calc(1.6*var(--u)) var(--gold)}100%{transform:none}}
 .ovn.chg{animation:ovpop .7s ease-out}
 .ovbar.num{gap:calc(3*var(--u))} .ovbar.num .ovn{font-size:calc(5.6*var(--u))} .ovbar.num .ovg .ic{width:calc(5.4*var(--u));height:calc(5.4*var(--u))}
+/* 縦長（画面の左右に置く用）と2×2 */
+.ovbar.vert{flex-direction:column;align-items:stretch;gap:calc(1.6*var(--u));padding:calc(1.6*var(--u))}
+.ovbar.vert .ovg{justify-content:space-between}
+.ovbar.vert:not(.num) .ovg.v{display:grid;grid-template-columns:auto 1fr;grid-template-areas:"ic n" "p p";row-gap:calc(.8*var(--u))}
+.ovbar.vert:not(.num) .ovg.v .ic{grid-area:ic} .ovbar.vert:not(.num) .ovg.v .ovn{grid-area:n;text-align:right} .ovbar.vert:not(.num) .ovg.v .ovp{grid-area:p}
+.ovbar.vert.num{gap:calc(1.2*var(--u))} .ovbar.vert.num .ovn{text-align:right;min-width:2.2em}
+.ovbar.grid{display:grid;grid-template-columns:auto auto;gap:calc(1.4*var(--u)) calc(3*var(--u))}
 .ovbox{border-top:1px solid var(--line-soft);padding-top:10px;margin-top:4px}
 .ovbox b{font-size:14px}
 </style>
@@ -1027,7 +1034,7 @@ function snapshot(){
 // オンライン：自分が変えた直前の値を戻す（その後に相手が同じ値を変えていたら戻さない）
 // 配信用表示（?ov=me|both&room=…&s=席&c=端末ID）
 const OV = (() => { const q = new URLSearchParams(location.search), v = q.get('ov'); if (!['me','both','p1','p2'].includes(v)) return null;
-  const st = q.get('s'); return {num: q.get('st') === 'n', kind: v, seat: st === 'p1' || st === 'p2' ? st : null, cid: (q.get('c') || '').replace(/[^a-z0-9]/gi, '').slice(0, 40)}; })();
+  const st = q.get('s'); return {num: q.get('st') === 'n', vert: q.get('ly') === 'v', grid: q.get('ly') === 'g', kind: v, seat: st === 'p1' || st === 'p2' ? st : null, cid: (q.get('c') || '').replace(/[^a-z0-9]/gi, '').slice(0, 40)}; })();
 let lastSM = null;   // ホストから届く「どの席にどの端末がいるか」
 const onHist = []; let undoing = false;
 let prevVals = null, localTick = false;   // 相手の変更を光らせる用
@@ -2090,11 +2097,12 @@ function ovBar(p, pos){
   const s = S[p], g = S.game;
   const pips = (k, n) => Array.from({length: n}, (_, i) => `<i class="${i < (s[k] || 0) ? 'on' : ''}${k !== 'vol' && i >= capOf(p, k) ? ' sealed' : ''}"></i>`).join('');
   const num = (k, html) => { const key = p + k, v = s[k] || 0, chg = key in ovPrev && ovPrev[key] !== v; ovPrev[key] = v; return `<span class="ovn${chg ? ' chg' : ''}">${html}</span>`; };
-  if (OV.num) return `<div class="ovbar num ${pos}${g.first && g.active === p ? ' turn' : ''}">
+  const lyc = OV.vert ? ' vert' : OV.grid ? ' grid' : '';
+  if (OV.num) return `<div class="ovbar num${lyc} ${pos}${g.first && g.active === p ? ' turn' : ''}">
     <span class="ovg v">${IC.vol}${num('vol', `${s.vol || 0}<small>/10</small>`)}</span>
     ${['a','b','o'].map(k => `<span class="ovg ${k} c-${k}">${IC[k]}${num(k, s[k] || 0)}</span>`).join('')}
   </div>`;
-  return `<div class="ovbar ${pos}${g.first && g.active === p ? ' turn' : ''}">
+  return `<div class="ovbar${lyc} ${pos}${g.first && g.active === p ? ' turn' : ''}">
     <span class="ovg v">${IC.vol}<span class="ovp">${pips('vol', 10)}</span>${num('vol', `${s.vol || 0}<small>/10</small>`)}</span>
     ${['a','b','o'].map(k => `<span class="ovg ${k} c-${k}">${IC[k]}<span class="ovp">${pips(k, 5)}</span>${num(k, s[k] || 0)}</span>`).join('')}
   </div>`;
