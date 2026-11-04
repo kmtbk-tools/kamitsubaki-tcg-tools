@@ -679,7 +679,7 @@ html.ovmode,body.ovmode{background:transparent!important;min-height:0;padding:0;
 body.ovmode>*:not(#ov){display:none!important}
 #ov{position:fixed;inset:0;--u:min(1vh,.57vw);pointer-events:none;font-family:var(--f-num)}
 .ovbar{position:absolute;left:50%;transform:translateX(-50%);display:flex;align-items:center;gap:calc(2.2*var(--u));padding:calc(1.1*var(--u)) calc(1.8*var(--u));border-radius:calc(2*var(--u));background:rgba(6,5,12,.97);border:calc(.15*var(--u)) solid rgba(255,255,255,.16);box-shadow:0 calc(.8*var(--u)) calc(3*var(--u)) rgba(0,0,0,.45);white-space:nowrap}
-.ovbar.bot{bottom:calc(2.2*var(--u))} .ovbar.top{top:calc(2.2*var(--u))}
+.ovbar.solo{top:50%;transform:translate(-50%,-50%)} .ovbar.bot{bottom:calc(2.2*var(--u))} .ovbar.top{top:calc(2.2*var(--u))}
 .ovbar.turn{border-color:var(--gold);box-shadow:0 0 0 calc(.2*var(--u)) rgba(214,180,106,.5),0 calc(.8*var(--u)) calc(3*var(--u)) rgba(0,0,0,.45)}
 .ovg{display:flex;align-items:center;gap:calc(.8*var(--u))}
 .ovg .ic{width:calc(4.6*var(--u));height:calc(4.6*var(--u));flex:0 0 auto}
@@ -781,6 +781,8 @@ body.ovmode>*:not(#ov){display:none!important}
         <p class="note" id="roomnote"></p>
         <div class="ovbox" id="ovbox"><b>配信用表示（OBS）</b>
           <div class="row" style="margin-top:6px"><button class="btn" id="ovme">自分の表示のリンクをコピー</button><button class="btn" id="ovboth">2人の表示のリンクをコピー</button></div>
+          <div class="row" style="margin-top:6px"><button class="btn" id="ovp1">P1用のリンクをコピー</button><button class="btn" id="ovp2">P2用のリンクをコピー</button></div>
+          <p class="note">P1用・P2用は1人分だけを表示します。OBSでソースを2つ作れば、それぞれ好きな位置・大きさに置けます（ブラウザソースは幅1920・高さ200くらいがおすすめ。帯はソースの大きさいっぱいに広がります）。</p>
           <label class="check"><input type="checkbox" id="ovnum"> <span>丸を出さず、アイコンと数字だけを大きく表示<small class="note">カメラ映像の上に重ねて見やすくしたいとき向け</small></span></label>
           <p class="note">OBSの「ソース」→「＋」→「ブラウザ」でURLに貼り付け、幅1920・高さ1080にしてください。背景は透明で、VOLと魔力だけを表示します（自分の表示は画面の下、2人の表示は上下に分けて表示。2人のときは自分が下）。観戦として入るので対戦の席は使いません。リンクには対戦コードが入っているので、配信画面やコメント欄に映さないでください。</p>
         </div>
@@ -1024,7 +1026,7 @@ function snapshot(){
 }
 // オンライン：自分が変えた直前の値を戻す（その後に相手が同じ値を変えていたら戻さない）
 // 配信用表示（?ov=me|both&room=…&s=席&c=端末ID）
-const OV = (() => { const q = new URLSearchParams(location.search), v = q.get('ov'); if (v !== 'me' && v !== 'both') return null;
+const OV = (() => { const q = new URLSearchParams(location.search), v = q.get('ov'); if (!['me','both','p1','p2'].includes(v)) return null;
   const st = q.get('s'); return {num: q.get('st') === 'n', kind: v, seat: st === 'p1' || st === 'p2' ? st : null, cid: (q.get('c') || '').replace(/[^a-z0-9]/gi, '').slice(0, 40)}; })();
 let lastSM = null;   // ホストから届く「どの席にどの端末がいるか」
 const onHist = []; let undoing = false;
@@ -2103,19 +2105,22 @@ function renderOverlay(){
   const el = $('ov'); el.hidden = false;
   const me = (OV.cid && lastSM ? ['p1','p2'].find(k => lastSM[k] === OV.cid) : null) || OV.seat;
   const bottom = me || 'p1';
-  el.innerHTML = OV.kind === 'me' ? ovBar(bottom, 'bot') : ovBar(other(bottom), 'top') + ovBar(bottom, 'bot');
+  const solo = OV.kind === 'p1' || OV.kind === 'p2';   // P1用・P2用：OBSで別々のソースにして自由に置く
+  el.innerHTML = solo ? ovBar(OV.kind, 'solo') : OV.kind === 'me' ? ovBar(bottom, 'bot') : ovBar(other(bottom), 'top') + ovBar(bottom, 'bot');
   // 帯ができるだけ大きくなるように：横幅いっぱい（96%）まで広げ、高さは画面の16%まで
   el.style.setProperty('--u', '10px');
   const bar = el.querySelector('.ovbar'), w = bar.offsetWidth / 10, h = bar.offsetHeight / 10;
-  if (w && h) el.style.setProperty('--u', Math.min(innerWidth * .96 / w, innerHeight * (OV.kind === 'me' ? .3 : OV.num ? .14 : .16) / h) + 'px');
+  if (w && h) el.style.setProperty('--u', Math.min(innerWidth * .96 / w, innerHeight * (solo ? .9 : OV.kind === 'me' ? .3 : OV.num ? .14 : .16) / h) + 'px');
 }
 $('ovme').onclick = () => copyOv('me');
 $('ovboth').onclick = () => copyOv('both');
+$('ovp1').onclick = () => copyOv('p1');
+$('ovp2').onclick = () => copyOv('p2');
 async function copyOv(kind){
   if (!roomCode) return;
   const u = new URL(inviteURL()); u.searchParams.set('ov', kind); if ($('ovnum').checked) u.searchParams.set('st', 'n');
-  if (seat === 'p1' || seat === 'p2'){ u.searchParams.set('s', seat); u.searchParams.set('c', CID); }
-  try { await navigator.clipboard.writeText(u.toString()); toast(kind === 'me' ? '自分の表示のリンクをコピーしました。OBSのブラウザソースに貼ってください' : '2人の表示のリンクをコピーしました。OBSのブラウザソースに貼ってください'); }
+  if ((kind === 'me' || kind === 'both') && (seat === 'p1' || seat === 'p2')){ u.searchParams.set('s', seat); u.searchParams.set('c', CID); }
+  try { await navigator.clipboard.writeText(u.toString()); toast(({me:'自分の表示', both:'2人の表示', p1:'P1用', p2:'P2用'})[kind] + 'のリンクをコピーしました。OBSのブラウザソースに貼ってください'); }
   catch(e){ toast('コピーできませんでした'); }
 }
 // オンライン：相手の端末で変わった数値を光らせ、1〜2項目なら通知も出す
