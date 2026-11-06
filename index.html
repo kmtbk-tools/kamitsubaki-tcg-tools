@@ -1687,9 +1687,15 @@ function closeDiceByUser(){
   const n = shownDie; closeDice();
   if (mode === 'online' && (seat === 'p1' || seat === 'p2') && n && S.game.dice && S.game.dice.n === n && S.game.dcl !== n) patch('game', {dcl: n});
 }
-let shownDie = 0;
+let shownDie = 0, diceAuto = null, fpGuardUntil = 0, diceArmedFor = -1;
+// サイコロの結果は最大30秒で自動で消す
+function armDiceAuto(){ clearTimeout(diceAuto); diceAuto = setTimeout(() => { if (diceStage && !diceStage.hidden && !diceStage.classList.contains('picking')){ closeDice(); render(); } }, 30000); }
 function closeDice(){
   if (!diceStage || diceStage.hidden) return;
+  clearTimeout(diceAuto);
+  // 先攻決めの結果を閉じたら、先攻・後攻を選べるようにポップアップを出し直す（閉じたときのタップが背景に届いて閉じないよう少し守る）
+  fpGuardUntil = Date.now() + 800;
+  if (S.game.fp && !S.game.first) fpClosed = false;
   clearTimeout(diceTimer); diceAnims.forEach(a => { try { a.cancel(); } catch(e){} }); diceAnims = [];
   diceSkip = null; pick = null;
   diceStage.classList.remove('on', 'landed', 'picking', 'pick-fp', 'centered'); diceStage.hidden = true;
@@ -1912,7 +1918,7 @@ function finishFirst(){
 }
 function playDice(d){
   if (!diceStage) buildDiceStage();
-  closeDice();
+  closeDice(); armDiceAuto();
   const vs = d.vs && d.vs.length ? d.vs : [d.v], N = vs.length, fp = d.k === 'fp';
   const W = innerWidth, H = innerHeight, ds = diceSize(N), half = ds / 2, cx = W / 2, cy = H / 2;
   diceStage.style.setProperty('--ds', ds + 'px');
@@ -2007,7 +2013,7 @@ function hintFor(g){
   if (g.phase === 'act') return ['Artist：手札から<b>1ターン1枚</b>、Standby（横）で。センターが空なら必ずセンター','Activeの各Artistで<b>Song 1回</b>（タイプ一致／ALL）。センターなら<b>センター効果</b>も','特殊能力・Magic・Directionは好きな順で（Directionは最大5・同名1枚）'];
   return ['使ったSongを<b>全てトラッシュ</b>','StandbyのArtistを<b>Active（縦）</b>に','使ったDirectionの向きを戻す'];
 }
-let lastDie = null, fpClosed = false, prevFirst = null;
+let lastDie = null, fpClosed = false, prevFirst = null, prevFp = '';
 function render(){
   const app = $('app');
   app.classList.toggle('view-focus', viewMode === 'focus');
@@ -2062,6 +2068,7 @@ function render(){
   }
   // 相手が結果を閉じたら、こちらの表示も閉じる
   if (d && g.dcl === d.n && diceStage && !diceStage.hidden && !diceStage.classList.contains('picking') && shownDie === d.n) closeDice();
+  if (diceStage && !diceStage.hidden && !diceStage.classList.contains('picking') && diceArmedFor !== shownDie){ diceArmedFor = shownDie; armDiceAuto(); }
   if (!shuffleTimer) die.innerHTML = dieFace(d);
   const js = $('judge').children, dv = d ? (d.vs && d.vs.length ? d.vs : [d.v]) : [];
   if (dv.length > 1 && d.k !== 'fp'){
@@ -2077,6 +2084,9 @@ function render(){
   // 先攻・後攻のポップアップ：まだ決まっていなければ出す（閉じたら「先攻・後攻」ボタンで開き直せる）
   if (prevFirst && !g.first) fpClosed = false;
   prevFirst = g.first;
+  const fpKey = g.fp ? g.fp.p1 + '-' + g.fp.p2 + '-' + (d ? d.n : '') : '';
+  if (fpKey && fpKey !== prevFp) fpClosed = false;   // 先攻決めの結果が出たら、閉じていても選択のために開き直す
+  prevFp = fpKey;
   $('fpsheet').hidden = !!g.first || fpClosed || !$('settings').hidden;   // 設定を開いている間は出さない
   setBtnLabel($('decide'), g.fp ? 'もう一度振る' : 'サイコロで決める'); $('decide').classList.toggle('primary', !g.fp);
   const fc = $('fpchoose');
@@ -2281,7 +2291,7 @@ $('undo').onclick = undo;
 $('setbtn2').onclick = () => $('setbtn').click();
 $('compactbtn2').onclick = () => $('compactbtn').click();
 $('fpsheet-x').onclick = () => { fpClosed = true; render(); };
-$('fpsheet').addEventListener('click', e => { if (e.target === $('fpsheet')){ fpClosed = true; render(); } });
+$('fpsheet').addEventListener('click', e => { if (e.target === $('fpsheet') && Date.now() > fpGuardUntil){ fpClosed = true; render(); } });
 $('capsheet-x').onclick = () => { $('capsheet').hidden = true; };
 $('capsheet').addEventListener('click', e => { if (e.target === $('capsheet')) $('capsheet').hidden = true; });
 // サイコロを押すと、まず振る個数を選ぶメニューを出す（選ぶとすぐ振る。スワイプ設定時ははじく画面へ）
