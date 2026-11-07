@@ -80,11 +80,15 @@ button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visi
 #mini{grid-area:mini} #panel-top{grid-area:top} #ctrl{grid-area:ctrl} #panel-bottom{grid-area:bottom} #more{grid-area:more}
 .view-focus #panel-top,.view-focus #mini{display:none}
 .view-focus .board{grid-template-areas:"ctrl" "bottom" "more"}
+/* オンラインの「自分だけ」でも相手の数値を1行で出す */
+.ol.view-focus #mini{display:flex}
+.ol.view-focus .board{grid-template-areas:"mini" "ctrl" "bottom" "more"}
 .view-equal #mini{display:none}
 .flip.view-equal #panel-top{transform:rotate(180deg)}
 @media (min-width:1000px){
   .view-equal .board{grid-template-columns:minmax(0,1fr) 340px minmax(0,1fr);grid-template-areas:"top ctrl bottom" "top more bottom";align-items:start}
   .view-focus .board{grid-template-columns:minmax(0,1fr) 360px;grid-template-areas:"bottom ctrl" "bottom more";align-items:start}
+  .ol.view-focus .board{grid-template-areas:"bottom mini" "bottom ctrl" "bottom more"}
 }
 
 /* mini (opponent summary) */
@@ -248,9 +252,11 @@ details>summary{cursor:pointer;color:var(--muted);font-size:12px;letter-spacing:
 .compact .board{flex:1 1 auto;min-height:0;gap:8px;grid-template-rows:auto auto auto minmax(0,1fr) auto}
 .view-equal.compact .board{grid-template-areas:"top" "ctrl" "more" "bottom";grid-template-rows:minmax(0,1fr) auto auto minmax(0,1fr)}
 .view-focus.compact .board{grid-template-areas:"ctrl" "more" "bottom";grid-template-rows:auto auto minmax(0,1fr)}
+.ol.view-focus.compact .board{grid-template-areas:"mini" "ctrl" "more" "bottom";grid-template-rows:auto auto auto minmax(0,1fr)}
 @media (min-width:1000px){
   .view-equal.compact .board{grid-template-columns:minmax(0,1fr) 340px minmax(0,1fr);grid-template-areas:"top ctrl bottom" "top more bottom";grid-template-rows:auto minmax(0,1fr)}
   .view-focus.compact .board{grid-template-columns:minmax(0,1fr) 360px;grid-template-areas:"bottom ctrl" "bottom more";grid-template-rows:auto minmax(0,1fr)}
+  .ol.view-focus.compact .board{grid-template-areas:"bottom mini" "bottom ctrl" "bottom more";grid-template-rows:auto auto minmax(0,1fr)}
 }
 .compact .player{display:flex;flex-direction:column;gap:6px;padding:8px;min-height:0;overflow:hidden;align-self:stretch}
 .compact .player>.sec{display:none!important}
@@ -379,9 +385,8 @@ details>summary{cursor:pointer;color:var(--muted);font-size:12px;letter-spacing:
 
 /* 簡潔表示の進行エリア：サイコロ・ターン終了・戻す・リセット */
 .compact #turnline,.compact #ctrl .phases,.compact #artistwrap,.compact .judge{display:none!important}
-.compact #ctrl{grid-template-areas:"die end undo reset"!important;grid-template-columns:auto minmax(0,1fr) auto auto!important;align-items:stretch}
+.compact #ctrl{grid-template-areas:"die end undo"!important;grid-template-columns:auto minmax(0,1fr) auto!important;align-items:stretch}
 .compact #undo{grid-area:undo;min-height:44px;padding:6px 10px;font-size:13px;white-space:nowrap}
-.compact #reset2{display:block;grid-area:reset;min-height:44px;padding:6px 12px;font-size:13px;white-space:nowrap}
 .compact #endturn{grid-area:end;min-height:44px}
 .compact .die{grid-area:die;align-self:center}
 .btn.danger{border-color:#6b2f3c}
@@ -516,7 +521,7 @@ details>summary{cursor:pointer;color:var(--muted);font-size:12px;letter-spacing:
   .compact .board{gap:6px}
   .compact .player{min-height:0;padding:6px 12px;gap:4px}
   .compact .phead .pname{font-size:14px}
-  .compact #ctrl{grid-template-areas:"die end undo reset set cmp"!important;grid-template-columns:auto minmax(0,1fr) auto auto auto auto!important;padding:5px 8px;gap:6px}
+  .compact #ctrl{grid-template-areas:"die end undo set cmp"!important;grid-template-columns:auto minmax(0,1fr) auto auto auto!important;padding:5px 8px;gap:6px}
   .compact #ctrl .btn{min-height:36px;padding:4px 12px}
   .compact #setbtn2,.compact #compactbtn2{display:block}
   #setbtn2{grid-area:set} #compactbtn2{grid-area:cmp}
@@ -585,7 +590,7 @@ details>summary{cursor:pointer;color:var(--muted);font-size:12px;letter-spacing:
 }
 /* PC（横並び）の簡潔表示：中央の列は2段（サイコロ＋ターン終了／戻す＋リセット） */
 @media (min-width:1000px){
-  .compact #ctrl{grid-template-areas:"die end end" "undo undo reset"!important;grid-template-columns:auto minmax(0,1fr) minmax(0,1fr)!important}
+  .compact #ctrl{grid-template-areas:"die end undo"!important;grid-template-columns:auto minmax(0,1fr) auto!important}
   .compact #endturn{white-space:nowrap}
   .compact #undo,.compact #reset2{white-space:nowrap}
 }
@@ -665,6 +670,7 @@ details>summary{cursor:pointer;color:var(--muted);font-size:12px;letter-spacing:
 .flash{animation:kflash 1.6s ease-out;border-radius:8px}
 .netlogbox summary{font-size:13px;color:var(--muted)}
 .netlog{max-height:200px;overflow:auto;font-size:11px;line-height:1.5;color:var(--muted);background:var(--bg);border:1px solid var(--line-soft);border-radius:8px;padding:6px 8px;white-space:pre-wrap;margin:6px 0}
+@media (min-width:600px) and (max-width:999px){ .view-focus.compact #panel-bottom .crows{width:100%;max-width:600px;margin-inline:auto} .ol.view-focus #mini{max-width:600px;width:100%;margin-inline:auto;box-sizing:border-box} }
 /* 幅600〜999px（PCの画面半分・タブレット縦）の2人並べる：丸と数字・＋−が離れすぎないよう、行をまとめて中央に置く */
 @media (min-width:600px) and (max-width:999px){
   .view-equal.compact .player .crows{width:100%;max-width:540px;margin-inline:auto}
@@ -705,12 +711,29 @@ body.ovmode>*:not(#ov){display:none!important}
 .ovbar.vert:not(.num) .ovg.v .ic{grid-area:ic} .ovbar.vert:not(.num) .ovg.v .ovn{grid-area:n;text-align:right} .ovbar.vert:not(.num) .ovg.v .ovp{grid-area:p;justify-content:start;padding-left:calc(5.4*var(--u))}
 .ovbar.vert.num{gap:calc(1.2*var(--u))} .ovbar.vert.num .ovn{text-align:right;min-width:2.2em}
 .ovbar.grid{display:grid;grid-template-columns:auto auto;gap:calc(1.4*var(--u)) calc(3*var(--u))}
-.members{display:flex;flex-direction:column;gap:6px}
+.winall{position:fixed;inset:0;z-index:25;display:grid;place-items:center;background:rgba(8,6,16,.72);text-align:center}
+.winall>div{background:var(--bg2);border:1px solid var(--gold);border-radius:16px;padding:22px 26px;box-shadow:0 20px 60px rgba(0,0,0,.6)}
+.winall h2{font-family:var(--f-disp);color:var(--gold);font-size:30px;letter-spacing:.08em;margin:0 0 6px}
+.winall p{margin:0 0 14px;color:var(--muted)}
+.ol.view-focus .mini{cursor:default}
+.nz-mini .ol.view-focus .mini .st.nz{display:none}
+@media (min-width:1000px){ .ol.view-focus.compact .mini,.ol.view-focus .mini{flex-wrap:wrap;row-gap:6px} .ol.view-focus .mini .stats{flex-wrap:wrap;flex:1 1 100%;order:5} .ol.view-focus .mini .mname{max-width:12em} }
+@media (max-width:599px){
+  .ol.view-focus .mini .mname{max-width:4.2em;font-size:12px}
+  .ol.view-focus .mini .chip.role{display:none}
+  .ol.view-focus .mini .stats{gap:7px}
+  .ol.view-focus .mini .st{font-size:18px}
+  .nz-mini .ol.view-focus .mini .st.nz{display:none}
+}
+.fpman{display:flex;flex-direction:column;gap:6px;border-top:1px solid var(--line-soft);padding-top:10px}
+.members>summary,.ovbox>summary{cursor:pointer;font-size:14px;font-weight:700;padding:6px 0}
+.members>summary::before,.ovbox>summary::before{content:'▸ ';color:var(--muted)} .members[open]>summary::before,.ovbox[open]>summary::before{content:'▾ '}
+.members[open],.ovbox[open]{display:flex;flex-direction:column;gap:6px}
+#memcount{font-weight:400;color:var(--muted);margin-left:6px;font-size:12px}
 .mrow2{display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap}
 .mrow2 .mlabel{font-size:13px;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .mrow2 .mlabel small{color:var(--muted);margin-left:4px}
 .ovbox{border-top:1px solid var(--line-soft);padding-top:10px;margin-top:4px}
-.ovbox b{font-size:14px}
 </style>
 </head>
 <body>
@@ -740,6 +763,8 @@ body.ovmode>*:not(#ov){display:none!important}
       </dl>
     </details>
     <div class="sgroup">
+      <div class="srow resetrow"><span class="slabel">この対戦</span><button class="btn danger" id="reset3" data-label="対戦をリセット" data-armed="もう一度押すとリセット">対戦をリセット</button></div>
+      <p class="note">VOL・魔力・ターンなどを最初に戻します（名前はそのまま）。オンラインでは2人とも戻ります。</p>
       <h2 class="sh">遊び方を選ぶ</h2>
       <p class="firstlead" id="firstlead" hidden>ようこそ！まず遊び方を選んでください。くわしくは上の「使い方」へ。</p>
       <div class="modecards" role="radiogroup" aria-label="遊び方">
@@ -790,11 +815,11 @@ body.ovmode>*:not(#ov){display:none!important}
         <div class="srow"><span class="slabel">自分の席</span>
           <div class="seg" role="group" aria-label="自分の席"><button data-seat="p1">P1</button><button data-seat="p2">P2</button><button data-seat="watch">観戦</button></div>
         </div>
-        <div class="members" id="members" hidden><span class="slabel">参加者の席</span><div id="memberlist"></div>
-          <p class="note">ホストは参加者の席を変えられます。観戦者を P1／P2 にすると、その席にいた人と入れ替わります（名前・数値は席に付いたままです）。</p></div>
+        <details class="members" id="members" hidden><summary>参加者の席（観戦者と対戦者の入れ替え）<span id="memcount"></span></summary><div id="memberlist"></div>
+          <p class="note">ホストは参加者の席を変えられます。観戦者を P1／P2 にすると、その席にいた人と入れ替わります（名前・数値は席に付いたままです）。</p></details>
         <label class="check oecheck"><input type="checkbox" id="oe"> <span>相手の数値も操作できるようにする<small class="note" id="oenote"></small></span></label>
         <p class="note" id="roomnote"></p>
-        <div class="ovbox" id="ovbox"><b>配信用表示（OBS）</b>
+        <details class="ovbox" id="ovbox"><summary>配信用表示（OBS）</summary>
           <div class="row" style="margin-top:6px"><button class="btn" id="ovme">自分の表示のリンクをコピー</button><button class="btn" id="ovboth">2人の表示のリンクをコピー</button></div>
           <div class="row" style="margin-top:6px"><button class="btn" id="ovp1">P1用のリンクをコピー</button><button class="btn" id="ovp2">P2用のリンクをコピー</button></div>
           <p class="note">P1用・P2用は1人分だけを表示します。OBSでソースを2つ作れば、それぞれ好きな位置・大きさに置けます。帯はソースの大きさいっぱいに広がります（おすすめの大きさ（余白が少なく並べやすい）：横長は幅1920・高さ150、縦長は幅400・高さ440、縦長＋数字だけは幅300・高さ400。縦長の2人の表示は左右に分けて自分が右）。形とチェックを選んでからリンクをコピーしてください。</p>
@@ -803,7 +828,7 @@ body.ovmode>*:not(#ov){display:none!important}
           </div>
           <label class="check"><input type="checkbox" id="ovnum"> <span>丸を出さず、アイコンと数字だけを大きく表示<small class="note">カメラ映像の上に重ねて見やすくしたいとき向け</small></span></label>
           <p class="note">OBSの「ソース」→「＋」→「ブラウザ」でURLに貼り付け、幅1920・高さ1080にしてください。背景は透明で、VOLと魔力だけを表示します（自分の表示は画面の下、2人の表示は上下に分けて表示。2人のときは自分が下）。観戦として入るので対戦の席は使いません。リンクには対戦コードが入っているので、配信画面やコメント欄に映さないでください。</p>
-        </div>
+        </details>
         <details class="netlogbox"><summary>接続の記録（切れたときの調査用）</summary><pre id="netlog" class="netlog"></pre><button class="btn" id="copynetlog">記録をコピー</button></details>
         <button class="btn" id="leave">対戦から抜ける</button>
       </div>
@@ -846,7 +871,6 @@ body.ovmode>*:not(#ov){display:none!important}
         <div class="judge" id="judge"><span>・4以上</span><span>・偶数／奇数</span><span class="by">タップで振る</span></div>
         <button class="btn primary" id="endturn">ターン終了</button>
         <button class="btn" id="undo" aria-label="直前の操作を戻す">↶ 戻す</button>
-        <button class="btn danger" id="reset2" data-label="リセット" data-armed="もう一度で実行">リセット</button>
         <button class="btn" id="setbtn2">設定</button>
         <button class="btn" id="compactbtn2">詳細</button>
       </div>
@@ -875,6 +899,7 @@ body.ovmode>*:not(#ov){display:none!important}
     <div class="sheet-h"><b>先攻・後攻を決める</b><button class="btn" id="fpsheet-x">閉じる</button></div>
     <div class="row"><button class="btn primary" id="decide">サイコロで決める</button><span class="note">2人が1個ずつ振り、大きい目の人が選びます</span></div>
     <div class="row" id="fpchoose" hidden></div>
+    <div class="fpman"><span class="note">サイコロを使わずに決める（じゃんけん等で決めたとき）</span><div class="row" id="fpmanual"></div></div>
     <p class="note">決まったら、お互いに7枚引きます（先攻1ターン目はドローしません）。</p>
   </div>
 </div>
@@ -887,6 +912,7 @@ body.ovmode>*:not(#ov){display:none!important}
 </div>
 <div class="toast" id="toast" hidden role="status"></div>
 <div id="ov" hidden aria-hidden="true"></div>
+<div class="winall" id="winall" hidden role="dialog" aria-label="LIVE 成功"><div><h2>LIVE 成功</h2><p id="winall-t"></p><div class="row" style="justify-content:center"><button class="btn" id="winall-x">閉じる</button></div></div></div>
 
 <script src="peerjs.min.js"></script>
 <script>
@@ -1523,7 +1549,7 @@ function buildPanel(el){
         ${k === 'vol' ? '' : `<span class="tstep tcap"><button data-cap="${k}" data-d="-1" aria-label="${g}の上限 -1">−</button><button data-cap="${k}" data-d="1" aria-label="${g}の上限 +1">＋</button></span>`}
       </div>`).join('')}
     </div>
-    <div class="win" data-f="win" hidden><div><h2>LIVE 成功</h2><p data-f="wintext"></p><div class="row" style="justify-content:center"><button class="btn" data-winclose="1">閉じる</button><button class="btn" data-winundo="1">VOLを1戻す</button></div></div></div>`;
+    <div class="win" data-f="win" hidden><div><h2>LIVE 成功</h2><p data-f="wintext"></p><div class="row" style="justify-content:center"><button class="btn" data-winclose="1">閉じる</button><button class="btn" data-winundo="1">VOLを1戻す</button><button class="btn danger" data-winreset="1" data-label="リセットしてもう一戦" data-armed="もう一度押すとリセット">リセットしてもう一戦</button></div></div></div>`;
 }
 function roleLabel(p){ const g = S.game; return g.first ? (g.first === p ? '先攻' : '後攻') : p.toUpperCase(); }
 function updatePanel(el, p){
@@ -1581,13 +1607,13 @@ function updateMini(p){
     <span class="stats">
       <span class="st lim${s.lu ? ' used' : ''}" aria-label="LIMITED ${s.lu ? '使用後' : '使用前'}">${IC.lim}<small>${s.lu ? '済' : '未'}</small></span>
       <span class="st vol" aria-label="VOL">${IC.vol}${s.vol}</span>
-      <span class="st" aria-label="ノイズ">${IC.noise}${s.noise}${s.mn ? `<small>/${capOf(p,'noise')}</small>` : ''}</span>
+      <span class="st nz" aria-label="ノイズ">${IC.noise}${s.noise}${s.mn ? `<small>/${capOf(p,'noise')}</small>` : ''}</span>
       <span class="st a" aria-label="魔力α">${IC.a}${s.a}${s.ma ? `<small>/${capOf(p,'a')}</small>` : ''}</span>
       <span class="st b" aria-label="魔力β">${IC.b}${s.b}${s.mb ? `<small>/${capOf(p,'b')}</small>` : ''}</span>
       <span class="st o" aria-label="魔力Ω">${IC.o}${s.o}${s.mo ? `<small>/${capOf(p,'o')}</small>` : ''}</span>
     </span>
     <button class="chip capbtn" data-capsheet="${p}" aria-label="${esc(s.name)}の上限を変更">上限</button>
-    <span class="chip swap">⇅<span class="t"> 切替</span></span>
+    ${mode === 'online' && seat === p ? '' : mode === 'online' && (seat === 'p1' || seat === 'p2') ? '' : '<span class="chip swap">⇅<span class="t"> 切替</span></span>'}
     <span class="volbar"><i style="width:${s.vol*10}%"></i></span>`;
 }
 
@@ -2013,10 +2039,10 @@ function hintFor(g){
   if (g.phase === 'act') return ['Artist：手札から<b>1ターン1枚</b>、Standby（横）で。センターが空なら必ずセンター','Activeの各Artistで<b>Song 1回</b>（タイプ一致／ALL）。センターなら<b>センター効果</b>も','特殊能力・Magic・Directionは好きな順で（Directionは最大5・同名1枚）'];
   return ['使ったSongを<b>全てトラッシュ</b>','StandbyのArtistを<b>Active（縦）</b>に','使ったDirectionの向きを戻す'];
 }
-let lastDie = null, fpClosed = false, prevFirst = null, prevFp = '';
+let lastDie = null, fpClosed = true, prevFirst = null, prevFp = '';   // 先攻・後攻のポップアップは自動では開かない（ボタンを押したときだけ）
 function render(){
   const app = $('app');
-  app.classList.toggle('view-focus', viewMode === 'focus');
+  app.classList.toggle('view-focus', viewMode === 'focus'); app.classList.toggle('ol', mode === 'online');
   app.classList.toggle('view-equal', viewMode === 'equal');
   app.classList.toggle('flip', flipOn());
   app.classList.toggle('compact', compact);
@@ -2043,6 +2069,11 @@ function render(){
   const bottom = bigP, top = other(bottom);
   updatePanel($('panel-bottom'), bottom); updatePanel($('panel-top'), top); updateMini(top);
   flashRemote(); renderOverlay();
+  // 「自分だけ」で相手が見えていないときも、相手の LIVE 成功（VOL10）を出す
+  const hp = viewMode === 'focus' && !OV ? other(bigP) : null;
+  if (hp && S[hp].vol < 10) winHidden.delete(hp);
+  $('winall').hidden = !(hp && S[hp].vol >= 10 && !winHidden.has(hp));
+  if (!$('winall').hidden) $('winall-t').textContent = `${pn(hp)} が VOL 10 点を獲得しました`;
   $('panel-top').setAttribute('aria-label', pn(top)); $('panel-bottom').setAttribute('aria-label', pn(bottom));
 
   const g = S.game;
@@ -2082,11 +2113,11 @@ function render(){
   js[2].textContent = d ? (d.k === 'fp' ? '先攻決めのサイコロ' : `${d.by} が振りました`) : 'タップで振る';
 
   // 先攻・後攻のポップアップ：まだ決まっていなければ出す（閉じたら「先攻・後攻」ボタンで開き直せる）
-  if (prevFirst && !g.first) fpClosed = false;
   prevFirst = g.first;
   const fpKey = g.fp ? g.fp.p1 + '-' + g.fp.p2 + '-' + (d ? d.n : '') : '';
   if (fpKey && fpKey !== prevFp) fpClosed = false;   // 先攻決めの結果が出たら、閉じていても選択のために開き直す
   prevFp = fpKey;
+  if (g.first) fpClosed = true;   // 決まったら閉じた扱いに（リセット後に勝手に開かないように）
   $('fpsheet').hidden = !!g.first || fpClosed || !$('settings').hidden;   // 設定を開いている間は出さない
   setBtnLabel($('decide'), g.fp ? 'もう一度振る' : 'サイコロで決める'); $('decide').classList.toggle('primary', !g.fp);
   const fc = $('fpchoose');
@@ -2095,6 +2126,8 @@ function render(){
     fc.innerHTML = `<span class="note">${esc(pn('p1'))} ${g.fp.p1} / ${esc(pn('p2'))} ${g.fp.p2} → <b style="color:var(--fg)">${esc(pn(g.fp.w))}</b> が選択：</span>
       <button class="btn primary" data-first="${g.fp.w}">${esc(pn(g.fp.w))}が先攻</button><button class="btn" data-first="${other(g.fp.w)}">${esc(pn(g.fp.w))}が後攻</button>`;
   } else { fc.hidden = true; fc.innerHTML = ''; }
+  const fm = `<button class="btn" data-first="p1">${esc(pn('p1'))}が先攻</button><button class="btn" data-first="p2">${esc(pn('p2'))}が先攻</button>`;
+  if ($('fpmanual').dataset.h !== fm){ $('fpmanual').innerHTML = fm; $('fpmanual').dataset.h = fm; }
 
   $('log').innerHTML = (g.log || []).map(e => `<li><time>${esc(e.ts)}</time><span>${esc(e.m)}</span></li>`).join('') || '<li><span>まだ記録はありません</span></li>';
   const bonus = p => { const a = S[p].mull||0, b = S[other(p)].mull||0; return a < b ? `+${b-a}枚` : ''; };
@@ -2129,6 +2162,7 @@ function render(){
       const lab = (st, dev, me) => (me ? 'あなた（ホスト）' : st === 'watch' || !st ? '観戦者' : esc(pn(st))) + (dev ? `<small>${esc(dev)}</small>` : '');
       const rows = [`<div class="mrow2"><span class="mlabel">${lab(seat, '', true)}</span>${seg('host', seat)}</div>`]
         .concat(liveConns().filter(c => !c.ov).sort((a, b) => a.mid - b.mid).map(c => `<div class="mrow2"><span class="mlabel">${lab(c.seat, c.dev)}</span>${seg(c.mid, c.seat || 'watch')}</div>`));
+      $('memcount').textContent = `（${rows.length}人）`;
       const html = rows.join(''); if ($('memberlist').dataset.h !== html){ $('memberlist').innerHTML = html; $('memberlist').dataset.h = html; }
     }
     $('linktext').textContent = inviteURL();
@@ -2256,6 +2290,7 @@ document.addEventListener('click', e => {
     $('capsheet').dataset.p = b.dataset.capsheet; $('capsheet').hidden = false; render(); return;
   }
   if (b.dataset.swap){ swapBig(); return; }
+  if (b.dataset.winreset){ resetMatch(b); return; }
   if (b.dataset.winclose){ winHidden.add(b.closest('.player').dataset.p); render(); return; }
   if (b.dataset.winundo){ const p = b.closest('.player').dataset.p; if (canEdit(p)) adjust(p, 'vol', -1); return; }
   if (b.dataset.phase) return setPhase(b.dataset.phase);
@@ -2284,7 +2319,7 @@ document.addEventListener('keydown', e => {
   if (e.key === 'Enter' && e.target.classList.contains('pname')) e.target.blur();
 });
 const swapBig = () => { bigP = other(bigP); render(); };
-$('mini').addEventListener('click', e => { if (e.target.closest('[data-capsheet]')) return; swapBig(); });
+$('mini').addEventListener('click', e => { if (e.target.closest('[data-capsheet]')) return; if (mode === 'online' && (seat === 'p1' || seat === 'p2')) return; swapBig(); });   // オンラインの対戦者は相手の1行を押しても切り替えない
 $('mini').addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' '){ e.preventDefault(); swapBig(); } });
 $('endturn').onclick = endTurn;
 $('undo').onclick = undo;
@@ -2317,7 +2352,8 @@ addEventListener('resize', closeDiceMenu);
 setDiceN(diceN);
 $('decide').onclick = decideFirst;
 $('reset').onclick = e => resetMatch(e.currentTarget);
-$('reset2').onclick = e => resetMatch(e.currentTarget);
+$('winall-x').onclick = () => { const hp = other(bigP); winHidden.add(hp); render(); };
+$('reset3').onclick = e => resetMatch(e.currentTarget);
 $('artist').onchange = e => { if (!myTurn()){ e.target.checked = !!S.game.artist; toast('相手の手番です'); return; } patch('game', {artist:e.target.checked}); if (e.target.checked) addLog(`${pn(S.game.active)}：Artistを登場させた`); };
 $('setbtn').onclick = () => { const s = $('settings'); s.hidden = !s.hidden; $('setbtn').setAttribute('aria-expanded', String(!s.hidden)); render(); };
 $('compactbtn').onclick = () => { compact = !compact; store.set('kt-compact', compact ? '1' : ''); render(); };
@@ -2396,7 +2432,7 @@ if (window.visualViewport) visualViewport.addEventListener('resize', pinSoon);
 document.addEventListener('focusout', () => setTimeout(pinTop, 100));
 
 // ---------- boot ----------
-setBtnLabel($('undo'), '↶ 戻す'); setBtnLabel($('reset2'), 'リセット'); setBtnLabel($('reset'), '対戦をリセット');
+setBtnLabel($('undo'), '↶ 戻す'); setBtnLabel($('reset3'), '対戦をリセット'); setBtnLabel($('reset'), '対戦をリセット');
 buildPanel($('panel-top')); buildPanel($('panel-bottom'));
 $('flip').checked = store.get('kt-flip') !== '0';
 $('follow').checked = store.get('kt-follow') !== '0';
