@@ -1,5 +1,5 @@
 // 神椿TCG tokenカウンター：電波がなくても開けるようにするキャッシュ
-const CACHE = 'kt-live-v2';
+const CACHE = 'kt-live-v3';
 const CORE = ['./', './index.html', './peerjs.min.js', './manifest.json', './icon.svg', './icon-192.png', './icon-512.png'];
 
 self.addEventListener('install', e => {
