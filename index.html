@@ -676,6 +676,7 @@ details>summary{cursor:pointer;color:var(--muted);font-size:12px;letter-spacing:
   .view-equal.compact .player .crows{width:100%;max-width:540px;margin-inline:auto}
 }
 /* サイコロの個数を選ぶメニュー */
+.die{-webkit-touch-callout:none;-webkit-user-select:none;user-select:none;touch-action:manipulation}
 .dicemenu{position:fixed;z-index:30;display:flex;gap:6px;padding:8px;background:var(--bg2);border:1px solid var(--line);border-radius:12px;box-shadow:0 12px 40px rgba(0,0,0,.6)}
 .dicemenu .dm-t{align-self:center;font-size:12px;color:var(--muted);margin-right:2px;white-space:nowrap}
 .dicemenu button{min-width:44px;height:44px;border-radius:10px;border:1px solid var(--line);background:var(--panel);color:var(--fg);font-size:15px;font-weight:700}
@@ -868,7 +869,7 @@ body.ovmode>*:not(#ov){display:none!important}
       <label class="check" id="artistwrap"><input type="checkbox" id="artist"> <span class="long">手札からArtistを出した（1ターン1枚）</span><span class="short">Artist済</span></label>
       <div class="ctrlrow">
         <span class="diewrap"><button class="die" id="die" aria-label="サイコロを振る">–</button></span>
-        <div class="judge" id="judge"><span>・4以上</span><span>・偶数／奇数</span><span class="by">タップで振る</span></div>
+        <div class="judge" id="judge"><span>・4以上</span><span>・偶数／奇数</span><span class="by">タップで振る・長押しで個数</span></div>
         <button class="btn primary" id="endturn">ターン終了</button>
         <button class="btn" id="undo" aria-label="直前の操作を戻す">↶ 戻す</button>
         <button class="btn" id="setbtn2">設定</button>
@@ -2110,7 +2111,7 @@ function render(){
     js[0].className = d && d.v >= 4 ? 'y' : ''; js[0].textContent = (d && d.v >= 4 ? '✓ ' : '・') + '4以上';
     js[1].className = d && d.v % 2 === 0 ? 'y' : ''; js[1].textContent = !d || d.k === 'fp' ? '・偶数／奇数' : (d.v % 2 === 0 ? '✓ 偶数' : '・奇数');
   }
-  js[2].textContent = d ? (d.k === 'fp' ? '先攻決めのサイコロ' : `${d.by} が振りました`) : 'タップで振る';
+  js[2].textContent = d ? (d.k === 'fp' ? '先攻決めのサイコロ' : `${d.by} が振りました`) : `タップで${diceN}個振る・長押しで個数`;
 
   // 先攻・後攻のポップアップ：まだ決まっていなければ出す（閉じたら「先攻・後攻」ボタンで開き直せる）
   prevFirst = g.first;
@@ -2331,9 +2332,9 @@ $('capsheet-x').onclick = () => { $('capsheet').hidden = true; };
 $('capsheet').addEventListener('click', e => { if (e.target === $('capsheet')) $('capsheet').hidden = true; });
 // サイコロを押すと、まず振る個数を選ぶメニューを出す（選ぶとすぐ振る。スワイプ設定時ははじく画面へ）
 function closeDiceMenu(){ const m = $('dicemenu'); if (m) m.remove(); }
-$('die').onclick = e => {
-  e.stopPropagation();
-  if ($('dicemenu')){ closeDiceMenu(); return; }
+// サイコロ：タップで前回と同じ個数をすぐ振る。長押し（0.45秒）で個数を選ぶメニュー
+function rollNow(){ if ($('swipe').checked) openDicePicker(); else roll(); }
+function openDiceMenu(){
   if (mode === 'online' && seat === 'watch'){ toast('観戦中は操作できません'); return; }
   const m = document.createElement('div'); m.className = 'dicemenu'; m.id = 'dicemenu'; m.setAttribute('role', 'menu');
   m.innerHTML = '<span class="dm-t">何個振る？</span>' + Array.from({length: MAXD}, (_, i) => `<button type="button" data-dn="${i+1}" aria-pressed="${i+1 === diceN}">${i+1}個</button>`).join('');
@@ -2343,9 +2344,19 @@ $('die').onclick = e => {
   m.style.top = (r.bottom + 8 + h < innerHeight ? r.bottom + 8 : Math.max(8, r.top - h - 8)) + 'px';
   m.onclick = ev => {
     const b = ev.target.closest('[data-dn]'); if (!b) return; ev.stopPropagation();
-    setDiceN(+b.dataset.dn); closeDiceMenu();
-    if ($('swipe').checked) openDicePicker(); else roll();
+    setDiceN(+b.dataset.dn); closeDiceMenu(); render(); rollNow();
   };
+}
+let dieHoldT = null, dieHeld = false;
+$('die').addEventListener('pointerdown', () => { dieHeld = false; clearTimeout(dieHoldT); dieHoldT = setTimeout(() => { dieHeld = true; closeDiceMenu(); openDiceMenu(); }, 450); });
+['pointerup','pointerleave','pointercancel'].forEach(t => $('die').addEventListener(t, () => clearTimeout(dieHoldT)));
+$('die').addEventListener('contextmenu', e => e.preventDefault());   // 長押しでブラウザのメニューが出ないように
+$('die').onclick = e => {
+  e.stopPropagation();
+  if (dieHeld){ dieHeld = false; return; }   // 長押しのあとのクリックは無視（メニューを開いたまま）
+  if ($('dicemenu')){ closeDiceMenu(); return; }
+  if (mode === 'online' && seat === 'watch'){ toast('観戦中は操作できません'); return; }
+  rollNow();
 };
 document.addEventListener('pointerdown', e => { if ($('dicemenu') && !e.target.closest('#dicemenu,#die')) closeDiceMenu(); }, true);
 addEventListener('resize', closeDiceMenu);
