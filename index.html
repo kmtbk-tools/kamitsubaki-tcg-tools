@@ -869,7 +869,7 @@ body.ovmode>*:not(#ov){display:none!important}
       <label class="check" id="artistwrap"><input type="checkbox" id="artist"> <span class="long">手札からArtistを出した（1ターン1枚）</span><span class="short">Artist済</span></label>
       <div class="ctrlrow">
         <span class="diewrap"><button class="die" id="die" aria-label="サイコロを振る">–</button></span>
-        <div class="judge" id="judge"><span>・4以上</span><span>・偶数／奇数</span><span class="by">タップで振る・長押しで個数</span></div>
+        <div class="judge" id="judge"><span>・4以上</span><span>・偶数／奇数</span><span class="by">タップで出してスワイプ・長押しで個数</span></div>
         <button class="btn primary" id="endturn">ターン終了</button>
         <button class="btn" id="undo" aria-label="直前の操作を戻す">↶ 戻す</button>
         <button class="btn" id="setbtn2">設定</button>
@@ -2111,7 +2111,7 @@ function render(){
     js[0].className = d && d.v >= 4 ? 'y' : ''; js[0].textContent = (d && d.v >= 4 ? '✓ ' : '・') + '4以上';
     js[1].className = d && d.v % 2 === 0 ? 'y' : ''; js[1].textContent = !d || d.k === 'fp' ? '・偶数／奇数' : (d.v % 2 === 0 ? '✓ 偶数' : '・奇数');
   }
-  js[2].textContent = d ? (d.k === 'fp' ? '先攻決めのサイコロ' : `${d.by} が振りました`) : `タップで${diceN}個振る・長押しで個数`;
+  js[2].textContent = d ? (d.k === 'fp' ? '先攻決めのサイコロ' : `${d.by} が振りました`) : `タップで${diceN}個出してスワイプ・長押しで個数`;
 
   // 先攻・後攻のポップアップ：まだ決まっていなければ出す（閉じたら「先攻・後攻」ボタンで開き直せる）
   prevFirst = g.first;
@@ -2417,7 +2417,7 @@ async function setWake(on, quiet){
 }
 if (!('wakeLock' in navigator)) $('wakewrap').hidden = true;
 $('wake').checked = store.get('kt-wake') !== '0';
-$('swipe').checked = store.get('kt-swipe') === '1';
+$('swipe').checked = true; $('swipe').closest('label').style.display = 'none';   // サイコロは常に画面に出してスワイプで投げる（設定は廃止）
 $('nzmini').onchange = e => setNoiseMini(e.target.checked);
 $('swipe').onchange = e => { store.set('kt-swipe', e.target.checked ? '1' : '0'); render(); };
 $('wake').onchange = e => { store.set('kt-wake', e.target.checked ? '1' : '0'); setWake(e.target.checked); };
