@@ -764,7 +764,7 @@ body.ovmode>*:not(#ov){display:none!important}
       </dl>
     </details>
     <div class="sgroup">
-      <div class="srow resetrow"><span class="slabel">この対戦</span><button class="btn danger" id="reset3" data-label="対戦をリセット" data-armed="もう一度押すとリセット">対戦をリセット</button></div>
+      <div class="srow resetrow"><span class="slabel">この対戦</span><button class="btn danger" id="reset3" data-label="対戦をリセット" data-armed="もう一度押すとリセット">対戦をリセット</button><button class="btn" id="refirst">先攻・後攻を決め直す</button></div>
       <p class="note">VOL・魔力・ターンなどを最初に戻します（名前はそのまま）。オンラインでは2人とも戻ります。</p>
       <h2 class="sh">遊び方を選ぶ</h2>
       <p class="firstlead" id="firstlead" hidden>ようこそ！まず遊び方を選んでください。くわしくは上の「使い方」へ。</p>
@@ -1098,7 +1098,7 @@ function undo(){
 }
 function patch(k, o){
   snapshot();
-  if (mode === 'online' && (seat === 'watch')){ toast('観戦中は操作できません'); return; }
+  if (mode === 'online' && seat === 'watch' && !(role === 'host' && k === 'game')){ toast('観戦中は操作できません'); return; }   // ホストは観戦中でも先攻・後攻やリセットなど進行は操作できる
   if (mode === 'online' && role === 'guest' && !(conn && conn.open)){ toast('接続されていません。再接続を待ってください'); return; }
   if (mode === 'online' && !undoing && (k === 'p1' || k === 'p2') && (k === seat || S.game.oe)){
     const before = {}; for (const x in o) before[x] = S[k][x];
@@ -1458,7 +1458,7 @@ function chooseFirst(p){
   render();
 }
 function resetMatch(btn){
-  if (mode === 'online' && seat === 'watch'){ toast('観戦中は操作できません'); return; }
+  if (mode === 'online' && seat === 'watch' && role !== 'host'){ toast('観戦中は操作できません'); return; }
   if (!btn.classList.contains('armed')){
     btn.classList.add('armed'); setBtnLabel(btn, btn.dataset.armed);
     btn._t = setTimeout(() => { btn.classList.remove('armed'); setBtnLabel(btn, btn.dataset.label); }, 3000); return;
@@ -2364,6 +2364,12 @@ setDiceN(diceN);
 $('decide').onclick = decideFirst;
 $('reset').onclick = e => resetMatch(e.currentTarget);
 $('winall-x').onclick = () => { const hp = other(bigP); winHidden.add(hp); render(); };
+// 先攻・後攻だけを未決定に戻す（人を入れ替えて次の対戦を始めるときなど。数値はそのまま）
+$('refirst').onclick = () => {
+  if (mode === 'online' && seat === 'watch' && role !== 'host'){ toast('観戦中は操作できません'); return; }
+  patch('game', {first: null, active: 'p1', turn: 1, phase: 'draw', artist: false, fp: null});
+  addLog('先攻・後攻を決め直し'); fpClosed = false; closeSettings(); render();
+};
 $('reset3').onclick = e => resetMatch(e.currentTarget);
 $('artist').onchange = e => { if (!myTurn()){ e.target.checked = !!S.game.artist; toast('相手の手番です'); return; } patch('game', {artist:e.target.checked}); if (e.target.checked) addLog(`${pn(S.game.active)}：Artistを登場させた`); };
 $('setbtn').onclick = () => { const s = $('settings'); s.hidden = !s.hidden; $('setbtn').setAttribute('aria-expanded', String(!s.hidden)); render(); };
