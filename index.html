@@ -726,6 +726,10 @@ body.ovmode>*:not(#ov){display:none!important}
   .ol.view-focus .mini .st{font-size:18px}
   .nz-mini .ol.view-focus .mini .st.nz{display:none}
 }
+.watchbar{display:flex;align-items:center;justify-content:center;flex-wrap:wrap;gap:8px;margin:0 0 8px;padding:6px 10px;background:var(--bg2);border:1px solid var(--line);border-radius:12px}
+.watchbar[hidden]{display:none}
+.watchbar .wb-t{font-size:12px;color:var(--muted);letter-spacing:.08em}
+.watchbar .btn{min-height:36px;padding:4px 12px;font-size:13px}
 .fpman{display:flex;flex-direction:column;gap:6px;border-top:1px solid var(--line-soft);padding-top:10px}
 .members>summary,.ovbox>summary{cursor:pointer;font-size:14px;font-weight:700;padding:6px 0}
 .members>summary::before,.ovbox>summary::before{content:'▸ ';color:var(--muted)} .members[open]>summary::before,.ovbox[open]>summary::before{content:'▾ '}
@@ -747,6 +751,7 @@ body.ovmode>*:not(#ov){display:none!important}
       <button class="iconbtn" id="setbtn" aria-expanded="false" aria-controls="settings" aria-label="設定・共有">設定<span class="t-share">・共有</span></button>
     </div>
   </header>
+  <div class="watchbar" id="watchbar" hidden><span class="wb-t">観戦中</span><button class="btn" data-wswap="p1" data-armed="もう一度押すと交代"></button><button class="btn" data-wswap="p2" data-armed="もう一度押すと交代"></button></div>
 
   <section class="settings" id="settings" hidden aria-label="設定・共有">
     <div class="set-h"><b>設定・共有</b><button class="btn" id="setx" aria-label="設定を閉じる">✕ 閉じる</button></div>
@@ -1151,7 +1156,7 @@ function seatMap(){
   return sm;
 }
 // ホストが席を割り当てる（target は 'host' か接続）。行き先の席に誰かいれば、その人と入れ替える
-function hostAssign(target, ns){
+function hostAssign(target, ns, why){
   const lc = liveConns().filter(x => !x.ov);
   const cur = target === 'host' ? seat : target.seat;
   if (cur === ns) return;
@@ -1166,10 +1171,10 @@ function hostAssign(target, ns){
   }
   for (const [who, st] of moves){
     if (who === 'host'){ seat = st; onHist.length = 0; store.set('kt-seat-host', st); if (st !== 'watch') bigP = st; }
-    else { who.seat = st; try { who.send({t:'seat', seat: st, want: st, assign: true}); } catch(e){} }
+    else { who.seat = st; try { who.send({t:'seat', seat: st, want: st, assign: true, why: why || ''}); } catch(e){} }
   }
   netLog('ホスト：席の変更 ' + moves.map(([w, st]) => (w === 'host' ? 'ホスト' : '参加者' + w.mid) + '→' + (st === 'watch' ? '観戦' : st.toUpperCase())).join('・'));
-  toast(moves.length > 1 ? '席を入れ替えました' : '席を変更しました');
+  toast(why === 'w' ? (target === 'host' ? `${ns.toUpperCase()} に入りました` : seat === 'watch' ? '観戦者と交代しました（あなたは観戦）' : `観戦者が ${ns.toUpperCase()} と交代しました`) : moves.length > 1 ? '席を入れ替えました' : '席を変更しました');
   broadcast(null, 0); render();
 }
 const stMsg = q => q ? {t:'s', s:S, q, sm: seatMap()} : {t:'s', s:S, sm: seatMap()};
@@ -1214,6 +1219,7 @@ function startHost(code, resumeState){
         return;
       }
       if (m.t === 'r'){ if (seated) doReset(); return; }
+      if (m.t === 'wswap'){ if (c.seat === 'watch' && !c.ov && (m.to === 'p1' || m.to === 'p2')) hostAssign(c, m.to, 'w'); return; }   // 観戦者からの「P1／P2と交代」
       if (m.t === 'h'){
         const want = (m.seat === 'p1' || m.seat === 'p2') ? m.seat : 'watch';
         c.cid = String(m.cid || '').slice(0, 40); c.dev = String(m.dev || '').replace(/[^\w\u3040-\u30ff\u4e00-\u9fff]/g, '').slice(0, 12);
@@ -1298,7 +1304,7 @@ function dial(){
         seat = m.seat; onHist.length = 0;
         if (seat !== 'watch'){ bigP = seat; store.set('kt-seat-guest', seat); }
         try { const l = JSON.parse(store.get('kt-last')); if (l && l.role === 'guest'){ l.watch = seat === 'watch'; store.set('kt-last', JSON.stringify(l)); } } catch(e){}
-        netLog('参加：席が ' + seat.toUpperCase() + ' に'); toast(m.assign ? `ホストが席を変更しました（あなたは ${seat === 'watch' ? '観戦' : seat.toUpperCase()}）` : m.sync ? `席をホストの設定に合わせました（あなたは ${seat === 'watch' ? '観戦' : seat.toUpperCase()}）` : m.swap ? `ホストと席を入れ替えました（あなたは ${seat.toUpperCase()}）` : seat === 'watch' ? 'プレイヤーの席が埋まっているため、観戦で参加しました' : `選んだ席は相手が使っているため ${seat.toUpperCase()} になりました（ホストが席を選び直すと入れ替われます）`);
+        netLog('参加：席が ' + seat.toUpperCase() + ' に'); toast(m.why === 'w' ? (seat === 'watch' ? '観戦者と交代しました（あなたは観戦）' : `${seat.toUpperCase()} に入りました`) : m.assign ? `ホストが席を変更しました（あなたは ${seat === 'watch' ? '観戦' : seat.toUpperCase()}）` : m.sync ? `席をホストの設定に合わせました（あなたは ${seat === 'watch' ? '観戦' : seat.toUpperCase()}）` : m.swap ? `ホストと席を入れ替えました（あなたは ${seat.toUpperCase()}）` : seat === 'watch' ? 'プレイヤーの席が埋まっているため、観戦で参加しました' : `選んだ席は相手が使っているため ${seat.toUpperCase()} になりました（ホストが席を選び直すと入れ替われます）`);
         render();
       }
       return;
@@ -1456,6 +1462,19 @@ function chooseFirst(p){
   addLog(`先攻：${pn(p)}　後攻：${pn(other(p))}`);
   if (followOn()) bigP = p;
   render();
+}
+// 観戦者が P1／P2 の人と交代する（2回押しで実行。空いていればそのまま入る）
+function watchSwap(btn){
+  if (mode !== 'online' || seat !== 'watch') return;
+  if (!btn.classList.contains('armed')){
+    document.querySelectorAll('[data-wswap].armed').forEach(x => { x.classList.remove('armed'); setBtnLabel(x, x.dataset.label); });
+    btn.classList.add('armed'); setBtnLabel(btn, btn.dataset.armed);
+    btn._t = setTimeout(() => { btn.classList.remove('armed'); setBtnLabel(btn, btn.dataset.label); }, 3000); return;
+  }
+  clearTimeout(btn._t); btn.classList.remove('armed'); setBtnLabel(btn, btn.dataset.label);
+  const to = btn.dataset.wswap;
+  if (role === 'host'){ hostAssign('host', to, 'w'); return; }
+  if (conn && conn.open){ try { conn.send({t:'wswap', to}); } catch(e){} } else toast('接続されていません');
 }
 function resetMatch(btn){
   if (mode === 'online' && seat === 'watch' && role !== 'host'){ toast('観戦中は操作できません'); return; }
@@ -2070,6 +2089,8 @@ function render(){
   const bottom = bigP, top = other(bottom);
   updatePanel($('panel-bottom'), bottom); updatePanel($('panel-top'), top); updateMini(top);
   flashRemote(); renderOverlay();
+  const wb = $('watchbar'); wb.hidden = !(mode === 'online' && seat === 'watch' && !OV);
+  if (!wb.hidden) wb.querySelectorAll('[data-wswap]').forEach(x => { const l = `${x.dataset.wswap.toUpperCase()}と交代`; x.title = pn(x.dataset.wswap) + 'と交代'; x.dataset.label = l; if (!x.classList.contains('armed')) setBtnLabel(x, l); });
   // 「自分だけ」で相手が見えていないときも、相手の勝利（VOL10）を出す
   const hp = viewMode === 'focus' && !OV ? other(bigP) : null;
   if (hp && S[hp].vol < 10) winHidden.delete(hp);
@@ -2295,6 +2316,7 @@ document.addEventListener('click', e => {
   if (b.dataset.winclose){ winHidden.add(b.closest('.player').dataset.p); render(); return; }
   if (b.dataset.winundo){ const p = b.closest('.player').dataset.p; if (canEdit(p)) adjust(p, 'vol', -1); return; }
   if (b.dataset.phase) return setPhase(b.dataset.phase);
+  if (b.dataset.wswap) return watchSwap(b);
   if (b.dataset.first) return chooseFirst(b.dataset.first);
   if (b.dataset.mull){ if (!canEdit(b.dataset.mull)){ toast('相手の値は操作できません'); return; } const p = b.dataset.mull, v = Math.max(0, (S[p].mull||0) + (+b.dataset.d)); patch(p, {mull:v}); addLog(`${pn(p)}：引き直し ${v}回`, p); return; }
   if (b.dataset.mseat){
