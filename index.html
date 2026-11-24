@@ -1500,9 +1500,15 @@ function endTurn(){
   if (followOn()) bigP = nx;
   render();
 }
+// サイコロの目：暗号用の乱数（crypto.getRandomValues）で1〜6を均等に。252以上は捨てて偏りをなくす
+function d6(){
+  const c = globalThis.crypto;
+  if (c && c.getRandomValues){ const b = new Uint8Array(1); do { c.getRandomValues(b); } while (b[0] >= 252); return 1 + (b[0] % 6); }
+  return 1 + Math.floor(Math.random() * 6);
+}
 function roll(){
   if (mode === 'online' && seat === 'watch'){ toast('観戦中は操作できません'); return false; }
-  const N = diceN, vs = Array.from({length: N}, () => 1 + Math.floor(Math.random() * 6));
+  const N = diceN, vs = Array.from({length: N}, () => d6());
   const by = mode === 'online' ? pn(seat) : pn(S.game.active);
   const sd = mode === 'online' ? (seat === 'p1' || seat === 'p2' ? seat : null) : S.game.active;
   // r: 演出用の乱数の種、t: はじいた位置と速さ（画面サイズで割った値）。相手の端末でも同じ動きを再現する
@@ -1526,7 +1532,7 @@ function decideFirst(){
   if ($('swipe').checked && mode === 'offline') openDicePicker('fp'); else rollFirst(null);
 }
 function rollFirst(throws, vals, n){
-  const [a, b] = vals || [1 + Math.floor(Math.random() * 6), 1 + Math.floor(Math.random() * 6)];
+  const [a, b] = vals || [d6(), d6()];
   const t = throws ? throws.map(x => x ? normThrow(x) : null) : null;
   const dice = {v: a, vs: [a, b], by: '先攻決め', n: n || Date.now(), s: null, r: Math.floor(Math.random() * 2147483647), t, k: 'fp'};
   if (a === b){ patch('game', {dice, fp: null}); addLog(`先攻決め：${pn('p1')} ${a} / ${pn('p2')} ${b} → 同じ目、振り直し`); return; }
@@ -1847,7 +1853,7 @@ let shuffleTimer = null;
 function startShuffle(){
   stopShuffle(false);
   let cur = 0;
-  const tick = () => { let n; do { n = 1 + Math.floor(Math.random() * 6); } while (n === cur); cur = n; $('die').innerHTML = pipSVG(n); };
+  const tick = () => { let n; do { n = d6(); } while (n === cur); cur = n; $('die').innerHTML = pipSVG(n); };
   tick(); shuffleTimer = setInterval(tick, 110);
 }
 function stopShuffle(show = true){
@@ -1902,7 +1908,7 @@ function openDicePicker(kind = 'roll'){
   if (!diceStage) buildDiceStage();
   closeDice();
   const W = innerWidth, H = innerHeight, bp = $('panel-bottom').dataset.p;
-  pick = {kind, drags: new Map(), thrown: [], landed: [], idle: [], vals: [1 + Math.floor(Math.random() * 6), 1 + Math.floor(Math.random() * 6)], g: {x: W / 2, y: H / 2}, pos: ['p1','p2'].map(p => ({x: W / 2, y: p === bp ? H * .72 : H * .28}))};
+  pick = {kind, drags: new Map(), thrown: [], landed: [], idle: [], vals: [d6(), d6()], g: {x: W / 2, y: H / 2}, pos: ['p1','p2'].map(p => ({x: W / 2, y: p === bp ? H * .72 : H * .28}))};
   diceStage.querySelector('.dres-main').innerHTML = ''; diceStage.querySelector('.dres-flip').hidden = true;
   diceStage.querySelector('.dpick-t').textContent = kind === 'fp' ? 'それぞれ自分のサイコロをはじく（同時でもOK）' : '画面のどこでも、指ではじいて投げる';
   diceStage.querySelector('.dpick-s').textContent = kind === 'fp' ? '自分の側を触ると、近いほうのサイコロをつかみます' : 'サイコロの上でなくても大丈夫。タップだけでも軽く転がります';
