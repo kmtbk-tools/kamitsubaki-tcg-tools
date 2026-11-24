@@ -674,7 +674,7 @@ details>summary{cursor:pointer;color:var(--muted);font-size:12px;letter-spacing:
 .flash{animation:kflash 1.6s ease-out;border-radius:8px}
 .netlogbox summary{font-size:13px;color:var(--muted)}
 .netlog{max-height:200px;overflow:auto;font-size:11px;line-height:1.5;color:var(--muted);background:var(--bg);border:1px solid var(--line-soft);border-radius:8px;padding:6px 8px;white-space:pre-wrap;margin:6px 0}
-@media (min-width:600px) and (max-width:999px){ .view-focus.compact #panel-bottom .crows{width:100%;max-width:600px;margin-inline:auto} .ol.view-focus #mini{max-width:600px;width:100%;margin-inline:auto;box-sizing:border-box} }
+@media (min-width:600px) and (max-width:999px) and (min-height:541px){ .view-focus.compact #panel-bottom .crows{width:100%;max-width:600px;margin-inline:auto} .ol.view-focus #mini{max-width:600px;width:100%;margin-inline:auto;box-sizing:border-box} }
 /* 幅600〜999px（PCの画面半分・タブレット縦）の2人並べる：丸と数字・＋−が離れすぎないよう、行をまとめて中央に置く */
 @media (min-width:600px) and (max-width:999px){
   .view-equal.compact .player .crows{width:100%;max-width:540px;margin-inline:auto}
@@ -752,6 +752,17 @@ body.ovmode>*:not(#ov){display:none!important}
 .stab{display:flex;flex-direction:column;gap:12px}
 .stab[hidden],.sgroup[hidden]{display:none}
 .ovbox{border-top:0!important;padding-top:0!important}
+/* 縦向きの「自分だけ」（大きい配置）だけに効かせる */
+@media (max-width:999px) and (min-height:600px){
+  .nopm .view-focus.compact #panel-bottom .crow:not([data-tk="noise"]) .tstep{display:none}
+  .nopm .view-focus.compact #panel-bottom .crow:not([data-tk="noise"]){grid-template-columns:44px minmax(0,1fr)!important;grid-template-areas:". pips" "ic pips" "num pips" ". pips"!important}
+  /* 各行をうっすらしたカードにして、行の高さと余白を均等に見せる */
+  .view-focus.compact #panel-bottom .crow{background:rgba(255,255,255,.028);border:1px solid rgba(255,255,255,.05);border-radius:14px;padding:6px 8px!important;box-sizing:border-box}
+  .view-focus.compact #panel-bottom .crows{gap:8px!important}
+  .nz-mini .view-focus.compact #panel-bottom .crows{grid-template-rows:minmax(0,1.55fr) auto repeat(3,minmax(0,1fr))}   /* VOLの行だけ余白が大きくならないように */
+  .view-focus.compact #panel-bottom .cpips{justify-content:center}
+}
+@media (min-width:600px) and (max-width:999px) and (min-height:600px){ .nopm .view-focus.compact #panel-bottom .crow:not([data-tk="noise"]){grid-template-columns:72px minmax(0,1fr)!important} }
 .fpman{display:flex;flex-direction:column;gap:6px;border-top:1px solid var(--line-soft);padding-top:10px}
 .members>summary,.ovbox>summary{cursor:pointer;font-size:14px;font-weight:700;padding:6px 0}
 .members>summary::before,.ovbox>summary::before{content:'▸ ';color:var(--muted)} .members[open]>summary::before,.ovbox[open]>summary::before{content:'▾ '}
@@ -866,6 +877,7 @@ body.ovmode>*:not(#ov){display:none!important}
       <div class="optlist">
         <label class="check" id="wakewrap"><input type="checkbox" id="wake"> 画面を消さない</label>
         <label class="check"><input type="checkbox" id="nzmini" checked> <span>VOLノイズを1行に小さく表示<small class="note">ほかの項目を大きく見やすくします。「VOLノイズ」の文字をタップしても開閉できます</small></span></label>
+        <label class="check"><input type="checkbox" id="nopm"> <span>＋−ボタンを隠して丸を大きく（「自分だけ」のとき）<small class="note">丸をタップでその数に。光っている一番上の丸をもう一度タップすると1つ減ります（0にもできます）。VOLノイズの＋−は残ります</small></span></label>
         <label class="check"><input type="checkbox" id="swipe"> <span>サイコロを画面に出してスワイプで投げる<small class="note">サイコロのボタンを押すと画面にサイコロが出ます。指ではじいた方向に転がります</small></span></label>
       </div>
     </div>
@@ -1111,6 +1123,8 @@ function loadView(){ viewMode = store.get(viewKey()) || (mode === 'online' ? 'fo
 // VOLノイズは使う頻度が低いので、縦向きの簡潔表示では1行に小さくたたむ（初期設定）
 let noiseMini = store.get('kt-nzmini') !== '0';
 function setNoiseMini(v){ noiseMini = v; store.set('kt-nzmini', v ? '1' : '0'); render(); }
+let noPM = store.get('kt-nopm') === '1';   // 自分だけ表示で＋−を隠す
+const noPMActive = () => noPM && viewMode === 'focus' && compact;
 let compact = store.get('kt-compact') === null ? true : store.get('kt-compact') === '1';   // 初めての人は簡潔表示から
 let collapsed = (() => { try { const v = JSON.parse(store.get('kt-collapsed')); if (Array.isArray(v)) return new Set(v); } catch(e){} return new Set(['setup']); })();
 if (store.get('kt-cv') !== '2'){ collapsed.add('cap'); store.set('kt-cv', '2'); store.set('kt-collapsed', JSON.stringify([...collapsed])); }
@@ -2124,7 +2138,7 @@ function render(){
   app.classList.toggle('swipe-on', $('swipe').checked);
   app.classList.toggle('ctrl-flip', mode === 'offline' && viewMode === 'equal' && flipOn() && !!S.game.first && S.game.active === other(bigP));
   document.body.classList.toggle('compact-body', compact);
-  document.body.classList.toggle('nz-mini', noiseMini); $('nzmini').checked = noiseMini;
+  document.body.classList.toggle('nz-mini', noiseMini); document.body.classList.toggle('nopm', noPM); $('nopm').checked = noPM; $('nzmini').checked = noiseMini;
   $('compactbtn').textContent = compact ? '詳細' : '簡潔'; $('compactbtn').title = compact ? 'ヒントやログも見られる詳細表示に切り替え' : 'スクロールなしの簡潔表示に切り替え';
   document.querySelectorAll('.sec').forEach(s => {
     const c = collapsed.has(s.dataset.sec) || (s.dataset.sec === 'noise' && noiseMini); s.classList.toggle('closed', c);
@@ -2338,7 +2352,9 @@ document.addEventListener('click', e => {
   if (panel && b.dataset.act){
     const p = panel.dataset.p;
     if (!canEdit(p)){ toast(seat === 'watch' && mode === 'online' ? '観戦中は操作できません' : '相手の値は操作できません'); return; }
-    if (b.dataset.act === 'adj') adjust(p, b.dataset.k, +b.dataset.d); else setVal(p, b.dataset.k, +b.dataset.v);
+    if (b.dataset.act === 'adj') adjust(p, b.dataset.k, +b.dataset.d);
+    else if (noPMActive() && panel.id === 'panel-bottom' && +b.dataset.v === (S[p][b.dataset.k] || 0)) adjust(p, b.dataset.k, -1);   // ＋−を隠しているときは、一番上の丸をもう一度で1つ減らす
+    else setVal(p, b.dataset.k, +b.dataset.v);
     return;
   }
   if (b.dataset.capt === 'noise' && compact && !capMode.has(b.closest('.player').dataset.p + ':noise')){ setNoiseMini(!noiseMini); return; }
@@ -2504,6 +2520,7 @@ if (!('wakeLock' in navigator)) $('wakewrap').hidden = true;
 $('wake').checked = store.get('kt-wake') !== '0';
 $('swipe').checked = true; $('swipe').closest('label').style.display = 'none';   // サイコロは常に画面に出してスワイプで投げる（設定は廃止）
 $('nzmini').onchange = e => setNoiseMini(e.target.checked);
+$('nopm').onchange = e => { noPM = e.target.checked; store.set('kt-nopm', noPM ? '1' : '0'); render(); };
 $('swipe').onchange = e => { store.set('kt-swipe', e.target.checked ? '1' : '0'); render(); };
 $('wake').onchange = e => { store.set('kt-wake', e.target.checked ? '1' : '0'); setWake(e.target.checked); };
 const wantWake = () => 'wakeLock' in navigator && $('wake').checked && document.visibilityState === 'visible' && !wl;
