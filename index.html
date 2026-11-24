@@ -297,10 +297,14 @@ details>summary{cursor:pointer;color:var(--muted);font-size:12px;letter-spacing:
 .player.readonly .tstep:not(.tcap){visibility:hidden}
 .player.readonly .cp{pointer-events:none}
 @media (max-width:380px){.tstep{width:72px}.crow{gap:4px;grid-template-columns:30px minmax(0,1fr) 2.2em auto}.cic .ic{width:22px;height:22px}.cic-t{font-size:8px;padding:1px 0}}
-/* LIMITED: 使用前 / 使用後 */
+/* LIMITED: 使える / 使用済み */
 .limtog{display:inline-flex;align-items:center;gap:5px;border:1px solid var(--gold);background:linear-gradient(180deg,#3a2f17,#2a2212);color:var(--gold);border-radius:999px;padding:3px 10px 3px 4px;font-size:12px;font-weight:700;min-height:30px;flex:0 0 auto;letter-spacing:.04em}
 .limtog .ic{width:26px;height:26px}
-.limtog.used{border-color:var(--line);background:var(--bg2);color:var(--dim);font-weight:500}
+.limtog:not(.used){box-shadow:0 0 0 1px rgba(214,180,106,.35),0 0 12px -2px rgba(214,180,106,.55)}
+.limtog:not(.used) [data-f="limst"]::before{content:'';display:inline-block;width:.55em;height:.55em;border-radius:50%;background:#7fd88f;margin-right:.35em;vertical-align:.08em;box-shadow:0 0 6px #7fd88f}
+.limtog.used{border-color:var(--line);border-style:dashed;background:var(--bg2);color:var(--dim);font-weight:500}
+.limtog.used [data-f="limst"]{text-decoration:line-through;text-decoration-thickness:1px}
+.limtog.used [data-f="limst"]::before{content:'✓ ';text-decoration:none;display:inline-block;margin-right:.2em}
 .limtog.used .ic{filter:grayscale(1);opacity:.5}
 .limtog.armed{border-color:var(--bad);color:var(--fg)}
 .player.readonly .limtog{pointer-events:none}
@@ -328,7 +332,7 @@ details>summary{cursor:pointer;color:var(--muted);font-size:12px;letter-spacing:
 .compact .mini .st{font-size:19px}
 .mini .st.lim .ic{width:22px;height:22px}
 .swapchip{border:1px solid var(--line);background:var(--panel);color:var(--fg);font-size:14px;padding:2px 9px;cursor:pointer}
-.mini .st.lim small{font-size:12px;color:var(--gold);font-family:var(--f-body)} .mini .st.lim.used .ic{filter:grayscale(1);opacity:.5} .mini .st.lim.used small{color:var(--dim)}
+.mini .st.lim small{font-size:11px;color:#7fd88f;font-family:var(--f-body);font-weight:700} .mini .st.lim.used .ic{filter:grayscale(1);opacity:.5} .mini .st.lim.used small{color:var(--dim)}
 .compact .mini .chip{font-size:10px;padding:1px 6px}
 .compact .mini .chip.role,.compact .mini .swap .t{display:none}
 .compact .mini .mname{flex:0 1 auto;min-width:2.5em}
@@ -1461,7 +1465,7 @@ const winHidden = new Set();
 function toggleLimited(p){
   if (!S[p].lu){ patch(p, {lu:true}); addLog(`${pn(p)}：LIMITEDを使用`, p); return; }
   if (armedLim !== p){ armedLim = p; clearTimeout(armedLimT); armedLimT = setTimeout(() => { armedLim = null; render(); }, 3000); render(); return; }
-  armedLim = null; patch(p, {lu:false}); addLog(`${pn(p)}：LIMITEDを使用前に戻した`, p);
+  armedLim = null; patch(p, {lu:false}); addLog(`${pn(p)}：LIMITEDを「使える」に戻した`, p);
 }
 function setPhase(ph){ if (S.game.phase === ph) return; if (!myTurn()){ toast('相手の手番です'); return; } patch('game', {phase: ph}); addLog(`${pn(S.game.active)}：${PH[ph]}フェーズ`); }
 function endTurn(){
@@ -1559,7 +1563,7 @@ function buildPanel(el){
       <span class="chip ro" data-f="ro" hidden>閲覧のみ</span>
       <span class="chip turn" data-f="turnchip" hidden>手番</span>
       <button class="chip swapchip" data-swap="1" data-f="swap" hidden aria-label="表示するプレイヤーを切り替え">⇅</button>
-      <button class="limtog" data-limtog="1" data-f="limtog">${IC.lim}<span class="lt-pre">LIMITED </span><span data-f="limst">使用前</span></button>
+      <button class="limtog" data-limtog="1" data-f="limtog">${IC.lim}<span class="lt-pre">LIMITED </span><span data-f="limst">使える</span></button>
     </div>
     <div class="sec" data-sec="vol">
       <button class="sec-head"><span class="chev">▾</span><span class="lbl">${IC.vol}<span class="lbl-text">VOL</span></span><span class="sum"><span data-f="voln">0</span><small> / 10</small></span></button>
@@ -1652,7 +1656,8 @@ function updatePanel(el, p){
   el.querySelectorAll('[data-cap]').forEach(b => b.disabled = !canCap());
   const lt = q('limtog'), armedNow = armedLim === p;
   lt.classList.toggle('used', !!s.lu); lt.classList.toggle('armed', armedNow);
-  q('limst').textContent = armedNow ? 'もう一度で使用前に' : (s.lu ? '使用後' : '使用前');
+  q('limst').textContent = armedNow ? 'もう一度で戻す' : (s.lu ? '使用済み' : '使える');
+  lt.title = s.lu ? 'LIMITED は使用済み（2回押すと「使える」に戻す）' : 'LIMITED はまだ使える（押すと使用済みにする）';
   lt.setAttribute('aria-pressed', String(!!s.lu));
   for (const k of ['vol','noise','a','b','o']){
     const row = el.querySelector(`.crow[data-tk="${k}"]`); const cm = capMode.has(p + ':' + k), cap = capOf(p, k);
@@ -1674,7 +1679,7 @@ function updateMini(p){
   el.innerHTML = `<span class="mname">${esc(s.name)}</span>
     <span class="chip role">${roleLabel(p)}</span>${isTurn ? '<span class="chip turn">手番</span>' : ''}${mode === 'online' && seat === p ? '<span class="chip me">あなた</span>' : ''}
     <span class="stats">
-      <span class="st lim${s.lu ? ' used' : ''}" aria-label="LIMITED ${s.lu ? '使用後' : '使用前'}">${IC.lim}<small>${s.lu ? '済' : '未'}</small></span>
+      <span class="st lim${s.lu ? ' used' : ''}" aria-label="LIMITED ${s.lu ? '使用済み' : '使える'}">${IC.lim}<small>${s.lu ? '済' : '使える'}</small></span>
       <span class="st vol" aria-label="VOL">${IC.vol}${s.vol}</span>
       <span class="st nz" aria-label="ノイズ">${IC.noise}${s.noise}${s.mn ? `<small>/${capOf(p,'noise')}</small>` : ''}</span>
       <span class="st a" aria-label="魔力α">${IC.a}${s.a}${s.ma ? `<small>/${capOf(p,'a')}</small>` : ''}</span>
@@ -2307,7 +2312,7 @@ function flashRemote(){
     }
     if (p === other(bigP)) fl($('mini').querySelector(k === 'lu' ? '.st.lim' : k === 'noise' ? '.st:nth-of-type(3)' : `.st.${k}`));
   }
-  if (ch.length <= 2) toast(ch.map(([p, k, a, b]) => `${pn(p)}：` + (k === 'lu' ? `LIMITED ${b ? '使用' : '使用前に戻した'}` : `${NAME[k]} ${a}→${b}`)).join('　'));
+  if (ch.length <= 2) toast(ch.map(([p, k, a, b]) => `${pn(p)}：` + (k === 'lu' ? `LIMITED ${b ? '使用済み' : '使えるに戻した'}` : `${NAME[k]} ${a}→${b}`)).join('　'));
 }
 function inviteURL(){ const u = new URL(location.href); u.search = ''; u.hash = ''; u.searchParams.set('room', roomCode || ''); return u.toString(); }
 function esc(s){ return String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
