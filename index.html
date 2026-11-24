@@ -760,6 +760,12 @@ body.ovmode>*:not(#ov){display:none!important}
   .view-focus.compact #panel-bottom .crow{background:rgba(255,255,255,.028);border:1px solid rgba(255,255,255,.05);border-radius:14px;padding:6px 8px!important;box-sizing:border-box}
   .view-focus.compact #panel-bottom .crows{gap:8px!important}
   .nz-mini .view-focus.compact #panel-bottom .crows{grid-template-rows:minmax(0,1.55fr) auto repeat(3,minmax(0,1fr))}   /* VOLの行だけ余白が大きくならないように */
+  /* VOLノイズを開いているとき：項目名と数字を小さめにして、行の枠からはみ出さないように */
+  body:not(.nz-mini) .view-focus.compact #panel-bottom .crow[data-tk="noise"] .cic-t{font-size:10.5px;padding:2px 1px;line-height:1.15}
+  body:not(.nz-mini) .view-focus.compact #panel-bottom .crow[data-tk="noise"] .cic-t::after{font-size:7px}
+  body:not(.nz-mini) .view-focus.compact #panel-bottom .crow[data-tk="noise"] .cnum{font-size:24px;padding-top:0;line-height:1}
+  body:not(.nz-mini) .view-focus.compact #panel-bottom .crow[data-tk="noise"]{padding-top:4px!important;padding-bottom:4px!important}
+  body:not(.nz-mini) .view-focus.compact #panel-bottom .crow[data-tk="noise"] .tstep{min-height:52px;height:calc(100% - 4px);align-self:center}
   .view-focus.compact #panel-bottom .cpips{justify-content:center}
 }
 @media (min-width:600px) and (max-width:999px) and (min-height:600px){ .nopm .view-focus.compact #panel-bottom .crow:not([data-tk="noise"]){grid-template-columns:72px minmax(0,1fr)!important} }
