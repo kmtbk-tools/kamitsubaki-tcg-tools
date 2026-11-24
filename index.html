@@ -730,6 +730,18 @@ body.ovmode>*:not(#ov){display:none!important}
 .watchbar[hidden]{display:none}
 .watchbar .wb-t{font-size:12px;color:var(--muted);letter-spacing:.08em}
 .watchbar .btn{min-height:36px;padding:4px 12px;font-size:13px}
+.ovpicks{display:flex;flex-direction:column;gap:8px}
+.ovpick{display:grid;grid-template-columns:auto minmax(0,1fr) auto;align-items:center;gap:10px;padding:8px 10px;border:1px solid var(--line);border-radius:12px;background:var(--panel)}
+.ovpick[hidden]{display:none}
+.ovpt{display:flex;flex-direction:column;gap:2px;min-width:0}
+.ovpt b{font-size:14px} .ovpt small{font-size:11.5px;color:var(--muted);line-height:1.4}
+.ovpick .btn{min-height:38px;padding:4px 12px}
+.ovbtn2{display:flex;flex-direction:column;gap:4px}
+.ovpv{position:relative;width:64px;height:36px;border-radius:4px;background:#2b2440;border:1px solid var(--line);overflow:hidden;flex:0 0 auto}
+.ovpv i{position:absolute;background:var(--gold);border-radius:2px;opacity:.9}
+.ovpv .hb{left:6px;right:6px;height:6px} .ovpv .hb.t{top:3px} .ovpv .hb.bt{bottom:3px}
+.ovpv .vb{top:5px;bottom:5px;width:10px} .ovpv .vb.l{left:3px} .ovpv .vb.r{right:3px}
+.ovpv .fb{width:22px;height:5px} .ovpv .fb.a{left:5px;top:8px} .ovpv .fb.b{right:5px;bottom:8px;width:9px;height:16px}
 .fpman{display:flex;flex-direction:column;gap:6px;border-top:1px solid var(--line-soft);padding-top:10px}
 .members>summary,.ovbox>summary{cursor:pointer;font-size:14px;font-weight:700;padding:6px 0}
 .members>summary::before,.ovbox>summary::before{content:'▸ ';color:var(--muted)} .members[open]>summary::before,.ovbox[open]>summary::before{content:'▾ '}
@@ -826,14 +838,16 @@ body.ovmode>*:not(#ov){display:none!important}
         <label class="check oecheck"><input type="checkbox" id="oe"> <span>相手の数値も操作できるようにする<small class="note" id="oenote"></small></span></label>
         <p class="note" id="roomnote"></p>
         <details class="ovbox" id="ovbox"><summary>配信用表示（OBS）</summary>
-          <div class="row" style="margin-top:6px"><button class="btn" id="ovme">自分の表示のリンクをコピー</button><button class="btn" id="ovboth">2人の表示のリンクをコピー</button></div>
-          <div class="row" style="margin-top:6px"><button class="btn" id="ovp1">P1用のリンクをコピー</button><button class="btn" id="ovp2">P2用のリンクをコピー</button></div>
-          <p class="note">P1用・P2用は1人分だけを表示します。OBSでソースを2つ作れば、それぞれ好きな位置・大きさに置けます。帯はソースの大きさいっぱいに広がります（おすすめの大きさ（余白が少なく並べやすい）：横長は幅1920・高さ150、縦長は幅400・高さ440、縦長＋数字だけは幅300・高さ400。縦長の2人の表示は左右に分けて自分が右）。形とチェックを選んでからリンクをコピーしてください。</p>
-          <div class="srow" style="margin-top:6px"><span class="slabel">形</span>
-            <div class="seg" role="group" aria-label="配信用表示の形"><button type="button" id="ovly-h" aria-pressed="true">横長</button><button type="button" id="ovly-v" aria-pressed="false">縦長</button></div>
+          <p class="note">配信画面の<b>どこに出したいか</b>で選んで、そのボタンでリンクをコピーします。迷ったら「2人を上下に」。</p>
+          <div class="ovpicks">
+            <div class="ovpick"><span class="ovpv"><i class="hb t"></i><i class="hb bt"></i></span><div class="ovpt"><b>2人を上下に</b><small>画面の上と下に帯（自分が下）。OBSのソースは1つ・幅1920×高さ1080</small></div><button class="btn" data-ovk="both" data-ovl="h">コピー</button></div>
+            <div class="ovpick"><span class="ovpv"><i class="vb l"></i><i class="vb r"></i></span><div class="ovpt"><b>2人を左右に</b><small>画面の左と右に縦長（自分が右）。ソースは1つ・1920×1080</small></div><button class="btn" data-ovk="both" data-ovl="v">コピー</button></div>
+            <div class="ovpick ov-self"><span class="ovpv"><i class="hb bt"></i></span><div class="ovpt"><b>自分だけを下に</b><small>自分の帯を画面の下に。ソースは1つ・1920×1080</small></div><button class="btn" data-ovk="me" data-ovl="h">コピー</button></div>
+            <div class="ovpick ov-self"><span class="ovpv"><i class="vb r"></i></span><div class="ovpt"><b>自分だけを右に</b><small>自分の縦長を画面の右に。ソースは1つ・1920×1080</small></div><button class="btn" data-ovk="me" data-ovl="v">コピー</button></div>
+            <div class="ovpick"><span class="ovpv"><i class="fb a"></i><i class="fb b"></i></span><div class="ovpt"><b>P1とP2を別々に（自由に配置）</b><small>ソースを2つ作り、好きな場所へ。形はソースの大きさで自動：横長（1920×150）なら帯、縦長（400×440）なら縦</small></div><span class="ovbtn2"><button class="btn" data-ovk="p1">P1用</button><button class="btn" data-ovk="p2">P2用</button></span></div>
           </div>
-          <label class="check"><input type="checkbox" id="ovnum"> <span>丸を出さず、アイコンと数字だけを大きく表示<small class="note">カメラ映像の上に重ねて見やすくしたいとき向け</small></span></label>
-          <p class="note">OBSの「ソース」→「＋」→「ブラウザ」でURLに貼り付け、幅1920・高さ1080にしてください。背景は透明で、VOLと魔力だけを表示します（自分の表示は画面の下、2人の表示は上下に分けて表示。2人のときは自分が下）。観戦として入るので対戦の席は使いません。リンクには対戦コードが入っているので、配信画面やコメント欄に映さないでください。</p>
+          <label class="check"><input type="checkbox" id="ovnum"> <span>丸を出さず、アイコンと数字だけを大きく表示<small class="note">カメラ映像の上に重ねて見やすくしたいとき向け（コピーの前にチェック）</small></span></label>
+          <p class="note">OBSの「ソース」→「＋」→「ブラウザ」でURLに貼り付け、上に書いた幅・高さにしてください。背景は透明で、VOLと魔力だけを表示します。観戦として入るので対戦の席は使いません。リンクには対戦コードが入っているので、配信画面やコメント欄に映さないでください。</p>
         </details>
         <details class="netlogbox"><summary>接続の記録（切れたときの調査用）</summary><pre id="netlog" class="netlog"></pre><button class="btn" id="copynetlog">記録をコピー</button></details>
         <button class="btn" id="leave">対戦から抜ける</button>
@@ -1077,8 +1091,10 @@ function snapshot(){
 // オンライン：自分が変えた直前の値を戻す（その後に相手が同じ値を変えていたら戻さない）
 // 配信用表示（?ov=me|both&room=…&s=席&c=端末ID）
 const OV = (() => { const q = new URLSearchParams(location.search), v = q.get('ov'); if (!['me','both','p1','p2'].includes(v)) return null;
-  const st = q.get('s'); return {num: q.get('st') === 'n', vert: q.get('ly') === 'v', grid: q.get('ly') === 'g', kind: v, seat: st === 'p1' || st === 'p2' ? st : null, cid: (q.get('c') || '').replace(/[^a-z0-9]/gi, '').slice(0, 40)}; })();
+  const st = q.get('s'); const ly = q.get('ly'); return {num: q.get('st') === 'n', vert: ly === 'v', grid: ly === 'g', auto: (v === 'p1' || v === 'p2') && ly !== 'v' && ly !== 'h' && ly !== 'g', kind: v, seat: st === 'p1' || st === 'p2' ? st : null, cid: (q.get('c') || '').replace(/[^a-z0-9]/gi, '').slice(0, 40)}; })();
 let lastSM = null;   // ホストから届く「どの席にどの端末がいるか」
+// 縦長で出すか。P1用・P2用は OBS のソースの形で自動（横に長い＝帯、それ以外＝縦）
+const ovVert = () => OV && (OV.vert || (OV.auto && innerWidth < innerHeight * 2));
 const onHist = []; let undoing = false;
 let prevVals = null, localTick = false;   // 相手の変更を光らせる用
 function undoOnline(){
@@ -2177,7 +2193,7 @@ function render(){
   $('lobby').hidden = !!role; $('room').hidden = !role;
   if (role){
     $('roomcode').textContent = roomCode || '----';
-    $('ovme').hidden = seat !== 'p1' && seat !== 'p2';
+    document.querySelectorAll('.ov-self').forEach(x => x.hidden = seat !== 'p1' && seat !== 'p2');
     $('members').hidden = role !== 'host';
     if (role === 'host'){
       const seg = (mid, cur) => `<div class="seg" role="group">${[['p1','P1'],['p2','P2'],['watch','観戦']].map(([k, t]) => `<button type="button" data-mseat="${mid}:${k}" aria-pressed="${cur === k}">${t}</button>`).join('')}</div>`;
@@ -2207,7 +2223,7 @@ function ovBar(p, pos){
   const s = S[p], g = S.game;
   const pips = (k, n) => Array.from({length: n}, (_, i) => `<i class="${i < (s[k] || 0) ? 'on' : ''}${k !== 'vol' && i >= capOf(p, k) ? ' sealed' : ''}"></i>`).join('');
   const num = (k, html) => { const key = p + k, v = s[k] || 0, chg = key in ovPrev && ovPrev[key] !== v; ovPrev[key] = v; return `<span class="ovn${chg ? ' chg' : ''}">${html}</span>`; };
-  const lyc = OV.vert ? ' vert' : OV.grid ? ' grid' : '';
+  const lyc = ovVert() ? ' vert' : OV.grid ? ' grid' : '';
   if (OV.num) return `<div class="ovbar num${lyc} ${pos}${g.first && g.active === p ? ' turn' : ''}">
     <span class="ovg v">${IC.vol}${num('vol', `${s.vol || 0}<small>/10</small>`)}</span>
     ${['a','b','o'].map(k => `<span class="ovg ${k} c-${k}">${IC[k]}${num(k, s[k] || 0)}</span>`).join('')}
@@ -2228,20 +2244,14 @@ function renderOverlay(){
   // 帯ができるだけ大きくなるように：横幅いっぱい（96%）まで広げ、高さは画面の16%まで
   el.style.setProperty('--u', '10px');
   const bar = el.querySelector('.ovbar'), w = bar.offsetWidth / 10, h = bar.offsetHeight / 10;
-  if (w && h) el.style.setProperty('--u', (OV.vert && !solo ? Math.min(innerWidth * .2 / w, innerHeight * .9 / h) : Math.min(innerWidth * .96 / w, innerHeight * (solo ? .9 : OV.kind === 'me' ? .3 : OV.num ? .14 : .16) / h)) + 'px');
+  if (w && h) el.style.setProperty('--u', (ovVert() && !solo ? Math.min(innerWidth * .2 / w, innerHeight * .9 / h) : Math.min(innerWidth * .96 / w, innerHeight * (solo ? .9 : OV.kind === 'me' ? .3 : OV.num ? .14 : .16) / h)) + 'px');
 }
-$('ovme').onclick = () => copyOv('me');
-$('ovboth').onclick = () => copyOv('both');
-let ovLy = 'h';
-const setOvLy = v => { ovLy = v; $('ovly-h').setAttribute('aria-pressed', String(v === 'h')); $('ovly-v').setAttribute('aria-pressed', String(v === 'v')); };
-$('ovly-h').onclick = () => setOvLy('h'); $('ovly-v').onclick = () => setOvLy('v');
-$('ovp1').onclick = () => copyOv('p1');
-$('ovp2').onclick = () => copyOv('p2');
-async function copyOv(kind){
+$('ovbox').addEventListener('click', e => { const b = e.target.closest('[data-ovk]'); if (b) copyOv(b.dataset.ovk, b.dataset.ovl || ''); });
+async function copyOv(kind, ly){
   if (!roomCode) return;
-  const u = new URL(inviteURL()); u.searchParams.set('ov', kind); if ($('ovnum').checked) u.searchParams.set('st', 'n'); if (ovLy === 'v') u.searchParams.set('ly', 'v');
+  const u = new URL(inviteURL()); u.searchParams.set('ov', kind); if ($('ovnum').checked) u.searchParams.set('st', 'n'); if (ly === 'v') u.searchParams.set('ly', 'v');
   if ((kind === 'me' || kind === 'both') && (seat === 'p1' || seat === 'p2')){ u.searchParams.set('s', seat); u.searchParams.set('c', CID); }
-  try { await navigator.clipboard.writeText(u.toString()); toast(({me:'自分の表示', both:'2人の表示', p1:'P1用', p2:'P2用'})[kind] + 'のリンクをコピーしました。OBSのブラウザソースに貼ってください'); }
+  try { await navigator.clipboard.writeText(u.toString()); toast(({me: ly === 'v' ? '自分だけを右に' : '自分だけを下に', both: ly === 'v' ? '2人を左右に' : '2人を上下に', p1:'P1用', p2:'P2用'})[kind].replace(/^(.*)$/, '「$1」') + 'のリンクをコピーしました。' + (kind === 'p1' || kind === 'p2' ? 'OBSでは横長（1920×150）なら帯、縦長（400×440）なら縦になります' : 'OBSのブラウザソースを幅1920×高さ1080に')); }
   catch(e){ toast('コピーできませんでした'); }
 }
 // オンライン：相手の端末で変わった数値を光らせ、1〜2項目なら通知も出す
