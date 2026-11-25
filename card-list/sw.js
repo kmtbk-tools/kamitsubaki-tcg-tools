@@ -1,5 +1,5 @@
 // カードおつかいリスト：電波がなくても開けるようにするキャッシュ（このフォルダだけが対象）
-const CACHE = 'kcl-v3';
+const CACHE = 'kcl-v4';
 const CORE = ['./', './index.html', './manifest.json', './icon.svg', './icon-192.png', './icon-512.png'];
 
 self.addEventListener('install', e => {

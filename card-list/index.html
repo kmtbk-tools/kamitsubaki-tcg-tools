@@ -293,6 +293,14 @@ function drawTo(img, max, q){
 }
 async function fileToImg(file){ const url = URL.createObjectURL(file); try { return drawTo(await loadImg(url), 520, 0.72); } finally { URL.revokeObjectURL(url); } }
 const imgSrc = it => it.img || it.url || '';
+// リスト画像（キャンバス）に描ける形で画像を読む。公式サイトの画像は他のページから描き込めない設定のため、
+// 画像の中継サービス（wsrv.nl）を通して読み込む。だめなら null（枠に案内を出す）
+async function loadForCanvas(src){
+  if (!src) return null;
+  if (src.startsWith('data:')){ try { return await loadImg(src); } catch(e){ return null; } }
+  try { return await loadImg(src, true); } catch(e){}
+  try { return await loadImg('https://wsrv.nl/?url=' + encodeURIComponent(src) + '&w=600&output=png', true); } catch(e){ return null; }
+}
 // 公式の画像アドレスからカード番号を取り出す（例: …/b11_SA-1-600x838.png → SA-1）
 function officialCode(url){
   const m = /tcg\.kamitsubaki\.jp\/.*\/(?:[a-z0-9]+_)?([A-Za-z]+-\d+)(?:-\d+x\d+)?\.(?:png|jpe?g|webp)$/i.exec(url || '');
@@ -671,7 +679,7 @@ async function shareFiles(files, label){
 async function makeListImages(l){
   const W = 1080, PAD = 40, COLS = 3, GAP = 24, CW = (W - PAD * 2 - GAP * (COLS - 1)) / COLS, IH = Math.round(CW * 88 / 63);
   const FONT = '"Hiragino Sans","Hiragino Kaku Gothic ProN","Noto Sans JP","Yu Gothic",sans-serif';
-  const imgs = await Promise.all(l.items.map(async it => { const s = imgSrc(it); if (!s) return null; try { return await loadImg(s, !s.startsWith('data:')); } catch(e){ return null; } }));
+  const imgs = await Promise.all(l.items.map(it => loadForCanvas(imgSrc(it))));
   const ROWS_PER = 6, perImg = COLS * ROWS_PER, chunks = [];
   for (let i = 0; i < l.items.length; i += perImg) chunks.push(i);
   const t = listTotals(l.items, () => null);
@@ -705,7 +713,7 @@ async function makeListImages(l){
       g.save(); roundRect(g, x, y, CW, IH, 18); g.clip(); g.fillStyle = '#dfe3ea'; g.fillRect(x, y, CW, IH);
       const im = imgs[idx];
       if (im){ const s = Math.min(CW / im.naturalWidth, IH / im.naturalHeight), w = im.naturalWidth * s, h = im.naturalHeight * s; try { g.drawImage(im, x + (CW - w) / 2, y + (IH - h) / 2, w, h); } catch(e){} }
-      else { g.fillStyle = '#8a92a3'; g.font = `500 26px ${FONT}`; g.textAlign = 'center'; if (imgSrc(it)){ g.fillText('画像はリンクの', x + CW / 2, y + IH / 2 - 30); g.fillText('ページで確認', x + CW / 2, y + IH / 2 + 4); } else g.fillText('写真なし', x + CW / 2, y + IH / 2 - 14); g.textAlign = 'left'; }
+      else { g.fillStyle = '#8a92a3'; g.font = `500 26px ${FONT}`; g.textAlign = 'center'; if (imgSrc(it)){ g.fillText('画像を読み込め', x + CW / 2, y + IH / 2 - 30); g.fillText('ませんでした', x + CW / 2, y + IH / 2 + 4); } else g.fillText('写真なし', x + CW / 2, y + IH / 2 - 14); g.textAlign = 'left'; }
       g.restore();
       // 番号
       g.fillStyle = '#1d2433'; g.beginPath(); g.arc(x + 34, y + 34, 24, 0, Math.PI * 2); g.fill();
