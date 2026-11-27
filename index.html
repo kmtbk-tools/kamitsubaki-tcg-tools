@@ -2326,7 +2326,13 @@ function renderOverlay(){
   // 帯ができるだけ大きくなるように：横幅いっぱい（96%）まで広げ、高さは画面の16%まで
   el.style.setProperty('--u', '10px');
   const bar = el.querySelector('.ovbar'), w = bar.offsetWidth / 10, h = bar.offsetHeight / 10;
-  if (w && h) el.style.setProperty('--u', (ovVert() && !solo ? Math.min(innerWidth * .2 / w, innerHeight * .9 / h) : Math.min(innerWidth * .96 / w, innerHeight * (solo ? .9 : OV.kind === 'me' ? .3 : OV.num ? .14 : .16) / h)) + 'px');
+  // ソースが横長（画面全体に重ねる使い方）なら控えめな大きさ。ソースを切り抜いて四角や縦長にしているときは、その枠いっぱいまで大きくする
+  const W = innerWidth, H = innerHeight, fill = W < H * 1.5, two = OV.kind === 'both';
+  let u;
+  if (solo) u = Math.min(W * .96 / w, H * .9 / h);
+  else if (ovVert()) u = fill ? Math.min(W * (two ? .46 : .94) / w, H * .9 / h) : Math.min(W * .2 / w, H * .9 / h);
+  else u = Math.min(W * .96 / w, H * (fill ? (two ? .44 : .9) : OV.kind === 'me' ? .3 : OV.num ? .14 : .16) / h);
+  if (w && h) el.style.setProperty('--u', u + 'px');
 }
 $('ovbox').addEventListener('click', e => { const b = e.target.closest('[data-ovk]'); if (b) copyOv(b.dataset.ovk, b.dataset.ovl || ''); });
 async function copyOv(kind, ly){
