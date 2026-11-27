@@ -747,7 +747,7 @@ body.ovmode>*:not(#ov){display:none!important}
 .ovpv{position:relative;width:64px;height:36px;border-radius:4px;background:#2b2440;border:1px solid var(--line);overflow:hidden;flex:0 0 auto}
 .ovpv i{position:absolute;background:var(--gold);border-radius:2px;opacity:.9}
 .ovpv .hb{left:6px;right:6px;height:6px} .ovpv .hb.t{top:3px} .ovpv .hb.bt{bottom:3px}
-.ovpv .vb{top:5px;bottom:5px;width:10px} .ovpv .vb.l{left:3px} .ovpv .vb.r{right:3px}
+.ovpv .vb{top:5px;bottom:5px;width:10px} .ovpv .vb.l{left:3px} .ovpv .vb.r{right:3px} .ov-self .ovpv .vb{width:20px;top:6px;bottom:6px}
 .ovpv .fb{width:22px;height:5px} .ovpv .fb.a{left:5px;top:8px} .ovpv .fb.b{right:5px;bottom:8px;width:9px;height:16px}
 .settabs{display:grid;grid-template-columns:repeat(3,1fr);gap:4px;padding:4px;border:1px solid var(--line);border-radius:12px;background:var(--bg)}
 .settabs button{min-height:38px;border:0;border-radius:9px;background:transparent;color:var(--muted);font-size:14px;font-weight:700;letter-spacing:.04em}
@@ -2330,7 +2330,7 @@ function renderOverlay(){
   const W = innerWidth, H = innerHeight, fill = W < H * 1.5, two = OV.kind === 'both';
   let u;
   if (solo) u = Math.min(W * .96 / w, H * .9 / h);
-  else if (ovVert()) u = fill ? Math.min(W * (two ? .46 : .94) / w, H * .9 / h) : Math.min(W * .2 / w, H * .9 / h);
+  else if (ovVert()) u = fill ? Math.min(W * (two ? .46 : .94) / w, H * .9 / h) : Math.min(W * (two ? .2 : .34) / w, H * .9 / h);
   else u = Math.min(W * .96 / w, H * (fill ? (two ? .44 : .9) : OV.kind === 'me' ? .3 : OV.num ? .14 : .16) / h);
   if (w && h) el.style.setProperty('--u', u + 'px');
 }
